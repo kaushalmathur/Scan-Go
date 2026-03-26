@@ -1,31 +1,88 @@
+version: '3.8'
+
 services:
-  frontend:
-    build:
-      context: .
-      dockerfile: docker/frontend.Dockerfile
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-
-  backend:
-    build:
-      context: .
-      dockerfile: docker/backend.Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      - DB_URL=postgresql://user:password@db:5432/scango
-    depends_on:
-      - db
-
-  db:
+  postgres:
     image: postgres:15-alpine
+    container_name: scango-db
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: password
-      POSTGRES_DB: scango
+      POSTGRES_USER: ${POSTGRES_USER:-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_DB: ${POSTGRES_DB:-scango}
     volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Mount schema initialization script
       - ./database/schema.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5432:5432"
+    networks:
+      - scango-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-user}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: scango-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - scango-net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: scango-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-scango}
+      - SECRET_KEY=${SECRET_KEY}
+      - ALGORITHM=${ALGORITHM:-HS256}
+      - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - scango-net
+
+  ml:
+    build:
+      context: ./ml
+      dockerfile: Dockerfile
+    container_name: scango-ml
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-user}:${POSTGRES_PASSWORD:-password}@postgres:5432/${POSTGRES_DB:-scango}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - scango-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: scango-frontend
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000
+    depends_on:
+      - backend
+    networks:
+      - scango-net
+
+networks:
+  scango-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
