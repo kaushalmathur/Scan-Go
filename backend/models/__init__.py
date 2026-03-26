@@ -1,8 +1,8 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, DateTime, Table, CheckConstraint, text
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-from .database import Base
+from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, DateTime, Table, CheckConstraint, text # type: ignore
+from sqlalchemy.dialects.postgresql import UUID # type: ignore
+from sqlalchemy.orm import relationship # type: ignore
+from sqlalchemy.sql import func # type: ignore
+from database import Base # type: ignore
 
 class Merchant(Base):
     __tablename__ = "merchants"

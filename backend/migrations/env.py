@@ -7,7 +7,7 @@ import sys
 from dotenv import load_dotenv
 
 # Add the project root to sys.path
-sys.path.append(os.getcwd())
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import Base
 

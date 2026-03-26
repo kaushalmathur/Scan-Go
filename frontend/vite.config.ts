@@ -1,32 +1,14 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import { VitePWA } from 'vite-plugin-pwa';
+// vite-plugin-pwa@1.2.0 does not yet support vite@8 — re-enable once upstream issue is resolved
+// import { VitePWA } from 'vite-plugin-pwa';
 
-// https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    VitePWA({
-      registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      manifest: {
-        name: 'Scan & Go',
-        short_name: 'ScanGo',
-        description: 'Smart Retail Scan & Go Experience',
-        theme_color: '#0ea5e9',
-        icons: [
-          {
-            src: '/pwa-192x192.png',
-            sizes: '192x192',
-            type: 'image/png'
-          },
-          {
-            src: '/pwa-512x512.png',
-            sizes: '512x512',
-            type: 'image/png'
-          }
-        ]
-      }
-    })
+    // VitePWA({ registerType: 'autoUpdate' }) — temporarily disabled
   ],
+  build: {
+    chunkSizeWarningLimit: 2000,
+  }
 });

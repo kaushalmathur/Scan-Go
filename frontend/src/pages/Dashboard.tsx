@@ -55,7 +55,7 @@ const Dashboard: React.FC = () => {
   });
   const [salesData, setSalesData] = useState<SalesDataPoint[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
-  const [categoryData, setCategoryData] = useState([
+  const [categoryData] = useState([
     { name: 'Beverages', revenue: 4500 },
     { name: 'Snacks', revenue: 3200 },
     { name: 'Electronics', revenue: 2800 },
@@ -100,6 +100,7 @@ const Dashboard: React.FC = () => {
     }, 30000); // 30 seconds
 
     return () => clearInterval(intervalId); // Cleanup
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [merchantId]);
 
   return (
@@ -205,6 +206,7 @@ const Dashboard: React.FC = () => {
                   <Tooltip 
                     contentStyle={{ backgroundColor: '#1f2937', border: '1px solid #374151', borderRadius: '0.5rem', color: '#fff' }}
                     itemStyle={{ color: '#60a5fa' }}
+                    // @ts-expect-error: Recharts Formatter<ValueType> includes readonly array which is incompatible
                     formatter={(value: number) => [`₹${value}`, 'Revenue']}
                   />
                   <Line 

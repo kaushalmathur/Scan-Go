@@ -3,17 +3,17 @@ import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import { toast, Toaster } from 'react-hot-toast';
-import { Camera, XCircle, Loader2 } from 'lucide-react';
+import { Camera, XCircle } from 'lucide-react';
 
 interface BarcodeScannerProps {
-  onScanSuccess?: (data: any) => void;
+  onScanSuccess?: (data: Record<string, unknown>) => void;
 }
 
 const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
   const { user } = useAuth();
   const videoRef = useRef<HTMLVideoElement>(null);
   const codeReader = useRef(new BrowserMultiFormatReader());
-  const [isScanning, setIsScanning] = useState(false);
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -21,10 +21,10 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
     return () => {
       stopScanner();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startScanner = async () => {
-    setIsScanning(true);
     setError(null);
     try {
       const videoInputDevices = await codeReader.current.listVideoInputDevices();
@@ -50,9 +50,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
           }
         }
       );
-    } catch (err: any) {
-      setError(err.message === 'No camera found' ? 'Camera access is required' : 'Camera error');
-      setIsScanning(false);
+    } catch (err) {
+      const e = err as Error;
+      setError(e.message === 'No camera found' ? 'Camera access is required' : 'Camera error');
       toast.error('Failed to start camera');
     }
   };
@@ -61,7 +61,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
     codeReader.current.reset();
   };
 
-  const handleBarcodeResult = async (barcode: str) => {
+  const handleBarcodeResult = async (barcode: string) => {
     // Prevent double scanning within short time
     codeReader.current.reset(); // Pause scanner
     
@@ -71,7 +71,7 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
         user_id: user?.user_id
       });
       
-      const lastItem = response.data.items.find((item: any) => item.product_name); // Simplified for now
+      const lastItem = response.data.items[response.data.items.length - 1];
       toast.success(`Added ${lastItem?.product_name || 'Item'} - $${lastItem?.unit_price || '0.00'}`, {
         icon: '🛒',
         duration: 3000,
@@ -85,8 +85,9 @@ const BarcodeScanner: React.FC<BarcodeScannerProps> = ({ onScanSuccess }) => {
         startScanner();
       }, 1500);
 
-    } catch (err: any) {
-      const detail = err.response?.data?.detail || "Network Error";
+    } catch (err) {
+      const e = err as { response?: { data?: { detail?: string } } };
+      const detail = e.response?.data?.detail || "Network Error";
       toast.error(detail);
       console.error(err);
       

@@ -6,20 +6,57 @@ import Scan from './pages/Scan';
 import Cart from './pages/Cart';
 import Dashboard from './pages/Dashboard';
 import Products from './pages/Products';
+import Navbar from './components/Navbar';
 
 import './index.css';
+
+// Protected Route wrapper checking local storage
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const token = localStorage.getItem('token');
+  if (!token) return <Navigate to="/login" replace />;
+  return <>{children}</>;
+};
 
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="min-h-screen bg-gray-50 text-gray-900">
+        <div className="min-h-screen bg-slate-900 text-white">
+          <Navbar />
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/scan" element={<Scan />} />
-            <Route path="/cart" element={<Cart />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/products" element={<Products />} />
+            <Route 
+              path="/scan" 
+              element={
+                <ProtectedRoute>
+                  <Scan />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/cart" 
+              element={
+                <ProtectedRoute>
+                  <Cart />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              } 
+            />
+            <Route 
+              path="/products" 
+              element={
+                <ProtectedRoute>
+                  <Products />
+                </ProtectedRoute>
+              } 
+            />
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </div>
