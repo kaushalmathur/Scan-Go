@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
-from ..database import get_db
-from ..models import Transaction, Scan, Product
-from ..schemas.base import DashboardSummary, SalesReport, SalesDataPoint
+from database import get_db
+from models import Transaction, Scan, Product
+from schemas.base import DashboardSummary, SalesReport, SalesDataPoint
 from datetime import datetime, timedelta
 
 router = APIRouter(tags=["Dashboard"])

@@ -1,18 +1,31 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from ..database import get_db
-from ..models import Product, Transaction, CartItem, User, Scan
-from ..schemas.base import CartScanRequest, CartDisplay, CheckoutRequest, CheckoutResponse, CartItemDisplay
+from database import get_db
+from models import Product, Transaction, CartItem, User, Scan, Merchant
+from schemas.base import CartScanRequest, CartDisplay, CheckoutRequest, CheckoutResponse, CartItemDisplay
 from decimal import Decimal
 
 router = APIRouter(tags=["Cart & Checkout"])
 
 @router.post("/scan", response_model=CartDisplay)
 async def scan_item(request: CartScanRequest, db: Session = Depends(get_db)):
-    # 1. Lookup Product
+    # 1. Lookup Product or auto-register scanned barcode
     product = db.query(Product).filter(Product.barcode == request.barcode).first()
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        merchant = db.query(Merchant).first()
+        merchant_id = merchant.id if merchant else 1
+        product = Product(
+            merchant_id=merchant_id,
+            sku=f"ITEM-{request.barcode[-4:] if len(request.barcode)>=4 else '000'}",
+            name=f"Scanned Item (#{request.barcode[-6:] if len(request.barcode)>=6 else request.barcode})",
+            price=Decimal("4.99"),
+            stock=100,
+            category="General Grocery",
+            barcode=request.barcode
+        )
+        db.add(product)
+        db.commit()
+        db.refresh(product)
     
     # 2. Log Scan
     new_scan = Scan(user_id=request.user_id, barcode=request.barcode, product_id=product.id)

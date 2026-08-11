@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, ForeignKey, DECIMAL, DateTime, Table, CheckConstraint, text # type: ignore
-from sqlalchemy.dialects.postgresql import UUID # type: ignore
+import uuid
 from sqlalchemy.orm import relationship # type: ignore
 from sqlalchemy.sql import func # type: ignore
 from database import Base # type: ignore
@@ -22,7 +22,7 @@ class User(Base):
     store_id = Column(Integer, ForeignKey("merchants.id", ondelete="CASCADE"))
     email = Column(String(255), unique=True, index=True, nullable=False)
     hashed_password = Column(String(255), nullable=False)
-    session_token = Column(UUID(as_uuid=True), server_default=text("gen_random_uuid()"))
+    session_token = Column(String(36), default=lambda: str(uuid.uuid4()))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     merchant = relationship("Merchant", back_populates="users")

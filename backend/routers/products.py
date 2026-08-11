@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.orm import Session
 from typing import List
-from ..database import get_db
-from ..models import Product, Merchant
-from ..schemas.base import ProductCreate, ProductDisplay, ProductUpdate
-from ..services.auth import SECRET_KEY, ALGORITHM # Simple way to get merchant_id for now
+from database import get_db
+from models import Product, Merchant
+from schemas.base import ProductCreate, ProductDisplay, ProductUpdate
+from services.auth import SECRET_KEY, ALGORITHM # Simple way to get merchant_id for now
 from jose import jwt
 from fastapi.security import OAuth2PasswordBearer
 

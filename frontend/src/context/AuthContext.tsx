@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface AuthContextType {
   user: any;
@@ -9,16 +9,37 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<any>(() => {
+    try {
+      const savedUser = localStorage.getItem('user');
+      if (savedUser) return JSON.parse(savedUser);
 
-  useEffect(() => {
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) setUser(JSON.parse(savedUser));
-  }, []);
+      const token = localStorage.getItem('token');
+      if (token) {
+        const parts = token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(window.atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+          return {
+            email: payload.sub || 'User',
+            user_id: payload.user_id || 1,
+            merchant_id: payload.merchant_id || 1,
+          };
+        }
+      }
+    } catch (e) {
+      console.warn("Auth initialization error:", e);
+    }
+    return null;
+  });
 
   const login = (userData: any, token: string) => {
-    setUser(userData);
-    localStorage.setItem('user', JSON.stringify(userData));
+    const validUser = {
+      email: userData?.email || 'User',
+      user_id: userData?.user_id || 1,
+      merchant_id: userData?.merchant_id || 1,
+    };
+    setUser(validUser);
+    localStorage.setItem('user', JSON.stringify(validUser));
     localStorage.setItem('token', token);
   };
 
