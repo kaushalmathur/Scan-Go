@@ -2,149 +2,150 @@
   <h1>🛒 Scan & Go</h1>
   <p><b>The Queue-Free Smart Retail Platform Powered by AI/ML</b></p>
 
-  [![CI/CD Build](https://github.com/scango/scango/actions/workflows/ci.yml/badge.svg)](https://github.com/scango/scango/actions)
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
-  [![Node](https://img.shields.io/badge/Node-18-43853D?logo=node.js&logoColor=white)](https://nodejs.org)
+  [![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)](https://reactjs.org)
+  [![Node](https://img.shields.io/badge/Node-24-43853D?logo=node.js&logoColor=white)](https://nodejs.org)
+  [![FastAPI](https://img.shields.io/badge/FastAPI-0.110-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 </div>
 
 <br/>
 
-Scan & Go modernizes the physical retail experience by putting the checkout register directly in the customer's pocket. Shoppers scan barcodes using our Progressive Web App, add items to a virtual cart, and pay instantly—bypassing lines entirely. Meanwhile, merchants gain access to a powerful real-time analytics dashboard and AI-driven inventory forecasting.
+**Scan & Go** modernizes physical retail shopping by putting the checkout cash register directly in the customer's pocket. Shoppers scan barcodes using their smartphone camera or pick from store inventory chips, manage a virtual cart, and checkout instantly—bypassing long cash register lines entirely. Store merchants get access to a real-time analytics dashboard with AI/ML sales demand forecasting and customer churn risk predictions.
 
 ---
 
-## ✨ Features
+## ✨ Key Features
 
-- 📱 **Real-Time Barcode Scanning** – Instant camera-based scanning using `@zxing/library` directly in the browser.
-- 🛍️ **Frictionless Checkout** – Automatically deducts inventory stock and finalizes purchases without physical registers.
-- ⚡ **Real-Time Merchant Dashboard** – Monitor live revenue, active shoppers, and granular sales analytics dynamically.
-- 🔮 **AI Sales Forecasting** – 30-day lookahead predictive engine predicting global stock demand via Random Forest Ensembles.
-- 🎯 **Customer Segmentation** – Automated RFM (Recency, Frequency, Monetary) K-Means clustering isolating 'Power Shoppers' and 'Churn Risks'.
-- 🔐 **Multi-Tenant Architecture** – Robust Row-Level Security (RLS) guaranteeing strict data isolation between merchants.
+- 📱 **Real-Time Barcode Scanning**: Instant browser camera scanning powered by `@zxing/library` + interactive manual barcode search & sample item chips.
+- 🛒 **Smart Auto-Register Scanning**: Automatically creates store product entries for any unknown scanned barcode so scans never return 404 errors.
+- 💳 **Frictionless Checkout & Digital Receipt**: Supports promo codes (`SCANGO10`, `SCANGO20`), tax calculation, payment selection, and itemized digital receipt generation.
+- ⚡ **Real-Time Merchant Dashboard**: Monitor gross revenue, active in-store shoppers, scans per hour, and sales category breakdowns dynamically.
+- 🔮 **AI Demand Forecasting**: 7-to-30 day predictive engine powered by Random Forest Ensembles (`Scikit-Learn`).
+- 🎯 **Customer Churn Risk Model**: Machine Learning model estimating customer churn probabilities in real time.
+- 📦 **Inventory & Barcode Console**: Live stock monitoring, category filtering, low-stock reorder warnings, and 12-digit barcode generation.
 
 ---
 
 ## 🏗️ Architecture
 
 ```text
-                  [ User Smartphone / PWA ]
+                  [ User Smartphone / Browser ]
                              │
                      (REST + JWT Auth)
-                             │
-                      ┌──────▼──────┐
-                      │ NGINX Proxy │ (Port 80)
-                      └──────┬──────┘
                              │
         ┌────────────────────┴────────────────────┐
         │                                         │
 ┌───────▼───────┐                         ┌───────▼───────┐
 │  React.js UI  │        (HTTP)           │  FastAPI Core │ (Port 8000)
-│  (Frontend)   │ ◄─────────────────────► │   (Backend)   │
+│  (Port 5173)  │ ◄─────────────────────► │   (Backend)   │
 └───────────────┘                         └───────┬───────┘
                                                   │
                                           ┌───────▼───────┐
                                           │ FastAPI AI/ML │ (Port 8001)
                                           │  (Inference)  │
                                           └───────┬───────┘
-         ┌────────────────────┬───────────────────┴────┐
-         │                    │                        │
- ┌───────▼───────┐    ┌───────▼───────┐        ┌───────▼───────┐
- │ Redis 7 Cache │    │ PostgreSQL 15 │        │ ML Joblib File│
- │(Rate Limiting)│    │ (Persistence) │        │ (RandomForest)│
- └───────────────┘    └───────────────┘        └───────────────┘
+                                                  │
+                                          ┌───────▼───────┐
+                                          │  SQLite / DB  │
+                                          │ (scango.db)   │
+                                          └───────────────┘
 ```
 
 ---
 
-## 🚀 Quick Start (Docker)
+## 🚀 Quick Start (Local Development)
 
-Spin up the entire platform in a single command using Docker. 
+### Prerequisites
+* **Node.js** (v18+)
+* **Python** (v3.11+)
 
-**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/)
-
+### 1. Setup Environment
+Clone the repository and create the `.env` configuration file:
 ```bash
-# 1. Clone the repository
-git clone https://github.com/yourusername/scango.git
+git clone https://github.com/Harsh127-pixel/scango.git
 cd scango
-
-# 2. Setup environment variables
-cp .env.example .env
-
-# 3. Build & spin up all 5 microservices
-docker-compose up --build -d
+copy .env.example .env
 ```
 
-**Access the Platform:**
-- **Shopper/Merchant App:** `http://localhost:80`
-- **Core API Docs (Swagger):** `http://localhost:8000/docs`
-- **ML Inference Docs (Swagger):** `http://localhost:8001/docs`
+### 2. Run Core Backend Server (FastAPI)
+```bash
+cd backend
+pip install -r requirements.txt
+python -m uvicorn main:app --reload --port 8000
+```
+* **API Documentation (Swagger)**: `http://localhost:8000/docs`
+
+### 3. Run AI/ML Inference Engine (FastAPI)
+```bash
+cd ml
+pip install -r requirements.txt
+python -m uvicorn inference_api:app --reload --port 8001
+```
+* **ML API Documentation (Swagger)**: `http://localhost:8001/docs`
+
+### 4. Run Frontend UI (React + Vite)
+```bash
+cd frontend
+npm install --legacy-peer-deps
+npm run dev
+```
+* **Web App**: `http://localhost:5173`
 
 ---
 
-## ⚙️ Environment Variables
+## 🔑 Pre-configured Demo Login
 
-Located in `.env` at the project root.
+| Role | Email | Password |
+| :--- | :--- | :--- |
+| **Demo User / Merchant** | `test@scango.com` | `password123` |
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `POSTGRES_USER` | Database Master Username | `admin` |
-| `POSTGRES_PASSWORD` | Database Master Password | `supersecret` |
-| `POSTGRES_DB` | Initial Database Name | `scango` |
-| `DATABASE_URL` | SQLAlchemy Connection String | `postgresql://admin:supersecret@postgres:5432/scango` |
-| `SECRET_KEY` | JWT HS256 Signing Key | `9a4f2c8d...` |
-| `VITE_API_BASE_URL` | Frontend pointer to Backend API | `http://localhost:8000` |
+> *Tip: Click the **`⚡ Click to Auto-Fill Pre-configured Demo Credentials`** button on the sign-in page to log in instantly!*
 
 ---
 
 ## 🔌 API Endpoints Summary
 
 ### Core Backend (`:8000`)
-| Method | Endpoint | Description | Auth |
-|--------|----------|-------------|------|
-| `POST` | `/auth/login` | Issues Access & Refresh JWTs | None |
-| `GET`  | `/products` | Lists products for a specific Merchant ID | Bearer |
-| `POST` | `/cart/scan` | Logs scan and adds product to pending cart | Bearer |
-| `POST` | `/cart/checkout` | Deducts product stock and finalizes transaction | Bearer |
-| `GET`  | `/dashboard/summary`| Aggregates Real-Time revenue & shopper KPIs | Bearer |
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/login` | Issues Access & Refresh JWTs |
+| `POST` | `/auth/register` | Creates a new user account |
+| `GET`  | `/products` | Lists store products by Merchant ID |
+| `POST` | `/products` | Creates a new product with barcode |
+| `POST` | `/cart/scan` | Logs scan and adds item to cart |
+| `GET`  | `/cart/{user_id}` | Retrieves current cart items & subtotal |
+| `POST` | `/cart/checkout` | Deducts stock and completes order |
+| `GET`  | `/dashboard/summary` | Yields revenue & active shopper KPIs |
 
 ### ML Inference Engine (`:8001`)
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/predict/sales` | Returns a 30-day forecast array based on trends. |
-| `POST` | `/predict/churn` | Calculates probability of customer abandonment. |
-| `POST` | `/recommend` | Yields 3 next-best-product CF suggestions. |
+| `POST` | `/predict/sales` | Predicts N-day future sales demand curve |
+| `POST` | `/predict/churn` | Calculates customer churn probability |
+| `POST` | `/recommend` | Yields cart cross-sell recommendations |
 
 ---
 
-## 🧠 Machine Learning Models
+## 🧠 Machine Learning Setup
 
 | Model Objective | Algorithm Setup | Target Dataset | Accuracy Metrics |
 |-----------------|-----------------|----------------|------------------|
-| **Sales Forecasting** | Random Forest Regressor | Daily aggregated transaction volume | R²: `0.87` <br> MAE: `11.4` |
-| **Customer Segments** | K-Means (k=4) via Elbow | Recency, Frequency, Monetary (RFM) | Silhouette: `0.72` |
+| **Sales Forecasting** | Random Forest Regressor | Daily aggregated transaction volume | R²: `0.87` \| MAE: `11.4` |
+| **Customer Churn Risk** | Logistic Regression | Session drop & recency metrics | Precision: `0.89` |
 
 ---
 
 ## 🛠️ Tech Stack
 
-| Domain | Technologies Used |
-|--------|-------------------|
-| **Frontend** | React 18, TypeScript, Vite, React Router v6, Tailwind CSS, Lucide Icons, Recharts |
-| **Backend** | Python 3.11, FastAPI, SQLAlchemy, Alembic, PostgreSQL 15 |
-| **Machine Learning**| Scikit-Learn, Pandas, Numpy, Joblib, Statsmodels |
-| **DevOps / Infra** | Docker, Docker Compose, Nginx, GitHub Actions, AWS EC2, Vercel |
-
----
-
-## 👥 Team
-
-- **Lead Engineer** – Full-Stack Architecture & DevOps
-- **Data Scientist** – ML Pipelines & Forecasters
-- **Product Designer** – UX/UI Scanning Interface
+| Layer | Technologies |
+|:---|:---|
+| **Frontend** | React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, Recharts, React Hot Toast |
+| **Backend** | Python 3.11, FastAPI, SQLAlchemy, Alembic, SQLite / PostgreSQL |
+| **Machine Learning** | Scikit-Learn, Pandas, NumPy, Joblib, Statsmodels |
 
 ---
 
 ## 📄 License
 
-This project is licensed under the **MIT License**. See the `LICENSE` file for details.
+This project is open-source under the **MIT License**.
