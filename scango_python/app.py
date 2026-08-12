@@ -5,6 +5,9 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
+from PIL import Image
+import zxingcpp
+import cv2
 
 from database import (
     init_db, SessionLocal, User, Merchant, Product, Transaction, CartItem, Scan,
@@ -95,16 +98,39 @@ def switch_page(page_name: str):
 def get_db():
     return SessionLocal()
 
+def decode_qr_or_barcode(image_file) -> str:
+    """Decodes QR codes and 1D/2D barcodes from image files using zxingcpp & OpenCV."""
+    try:
+        img = Image.open(image_file)
+        
+        # 1. Decode with zxing-cpp (Handles QR, EAN, UPC, Code128, DataMatrix)
+        results = zxingcpp.read_barcodes(img)
+        if results and len(results) > 0:
+            return results[0].text.strip()
+
+        # 2. OpenCV QR Code Detector fallback
+        img_np = np.array(img.convert('RGB'))
+        detector = cv2.QRCodeDetector()
+        val, _, _ = detector.detectAndDecode(img_np)
+        if val and len(val.strip()) > 0:
+            return val.strip()
+
+    except Exception as e:
+        print("QR/Barcode decoding exception:", e)
+    
+    return None
+
 def add_to_cart_by_barcode(barcode: str):
     db = get_db()
     product = db.query(Product).filter(Product.barcode == barcode).first()
     
     if not product:
-        # Auto-register barcode if unknown so scans never fail
+        # Auto-register barcode/QR if unknown so scans never fail
+        clean_name = f"QR Item ({barcode[:16]}...)" if len(barcode) > 16 else f"Scanned Item (#{barcode})"
         product = Product(
             merchant_id=1,
-            sku=f"ITEM-{barcode[-4:] if len(barcode)>=4 else '000'}",
-            name=f"Scanned Item (#{barcode[-6:] if len(barcode)>=6 else barcode})",
+            sku=f"QR-{barcode[-4:] if len(barcode)>=4 else '000'}",
+            name=clean_name,
             price=4.99,
             stock=100,
             category="General Grocery",
@@ -151,7 +177,7 @@ menu = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Tech Stack (100% Python):**")
-st.sidebar.code("Streamlit • Pandas • NumPy\nSQLAlchemy • Scikit-Learn")
+st.sidebar.code("Streamlit • OpenCV • ZXing\nPandas • NumPy • Scikit-Learn")
 
 # -----------------------------------------------------------------------------
 # TAB 1: AUTHENTICATION
@@ -233,29 +259,29 @@ if menu == "🔐 Sign In / Register":
 # -----------------------------------------------------------------------------
 elif menu == "📱 Scan & Go Terminal":
     st.title("📱 Scan & Go Terminal")
-    st.caption("Point your camera or select store item chips to scan barcodes directly into your cart.")
+    st.caption("Point your camera or upload a QR Code / Barcode image to scan items directly into your cart.")
 
     if not st.session_state.user:
         st.warning("Please Sign In on the Auth tab first.")
         st.stop()
 
     if st.session_state.last_scanned:
-        st.success(f"🛒 **Just Added:** {st.session_state.last_scanned} to your shopping cart!")
+        st.success(f"🛒 **Just Added to Cart:** {st.session_state.last_scanned}")
 
     # Manual Barcode Search Bar
-    st.markdown("### 🔎 Barcode Search & Direct Entry")
+    st.markdown("### 🔎 Manual Barcode / QR Code Search")
     col_input, col_btn = st.columns([4, 1])
     with col_input:
-        input_code = st.text_input("Enter or paste barcode digits:", placeholder="e.g. 123456789012", label_visibility="collapsed")
+        input_code = st.text_input("Enter or paste barcode / QR code text:", placeholder="e.g. 123456789012 or https://...", label_visibility="collapsed")
     with col_btn:
-        if st.button("Scan Item", type="primary", use_container_width=True):
+        if st.button("Scan Code", type="primary", use_container_width=True):
             if input_code:
                 add_to_cart_by_barcode(input_code)
                 st.rerun()
 
     # Quick Store Item Chips for Instant Demo
     st.markdown("### ⚡ Store Item Quick Barcode Chips")
-    st.caption("Click any item below to simulate instant camera barcode scan:")
+    st.caption("Click any item below to simulate instant barcode scan:")
 
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     chips = [
@@ -273,14 +299,37 @@ elif menu == "📱 Scan & Go Terminal":
                 add_to_cart_by_barcode(code)
                 st.rerun()
 
-    # Live Camera Scanner Feed Component
+    # Live Camera & Image File QR Reader
     st.markdown("---")
-    st.markdown("### 🎥 Camera Viewfinder Scanner")
-    camera_photo = st.camera_input("Point camera reticle at barcode:")
-    if camera_photo:
-        st.info("Photo captured by browser camera! Scanning code...")
-        add_to_cart_by_barcode("123456789012")
-        st.rerun()
+    st.markdown("### 🎥 Camera & Image QR Code / Barcode Decoder")
+    
+    col_cam, col_file = st.columns([1, 1])
+
+    with col_cam:
+        st.markdown("#### Option A: Live Camera Input")
+        camera_photo = st.camera_input("Point camera directly at QR Code or Barcode:")
+        if camera_photo:
+            decoded_text = decode_qr_or_barcode(camera_photo)
+            if decoded_text:
+                st.success(f"🎉 **QR / Barcode Decoded:** `{decoded_text}`")
+                add_to_cart_by_barcode(decoded_text)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("⚠️ No QR code or Barcode detected in camera photo. Please hold camera closer with clear lighting and take photo again.")
+
+    with col_file:
+        st.markdown("#### Option B: Upload Image File")
+        uploaded_img = st.file_uploader("Upload QR Code or Barcode image file (PNG, JPG, WEBP):", type=["png", "jpg", "jpeg", "webp"])
+        if uploaded_img:
+            decoded_text = decode_qr_or_barcode(uploaded_img)
+            if decoded_text:
+                st.success(f"🎉 **Uploaded Image Decoded:** `{decoded_text}`")
+                add_to_cart_by_barcode(decoded_text)
+                time.sleep(1)
+                st.rerun()
+            else:
+                st.error("⚠️ Could not decode QR / Barcode from uploaded image file. Try a clearer image.")
 
 # -----------------------------------------------------------------------------
 # TAB 3: SHOPPING CART & CHECKOUT
@@ -298,7 +347,7 @@ elif menu == "🛒 Shopping Cart & Checkout":
             total = item['price'] * item['quantity']
             cart_data.append({
                 "Product Name": item['name'],
-                "Barcode": item['barcode'],
+                "Barcode / QR": item['barcode'],
                 "Unit Price ($)": f"${item['price']:.2f}",
                 "Quantity": item['quantity'],
                 "Total ($)": f"${total:.2f}"
