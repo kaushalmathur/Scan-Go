@@ -66,6 +66,15 @@ st.markdown("""
 # Initialize Database Schema & Seed Data
 init_db()
 
+# Navigation Options
+nav_options = [
+    "🔐 Sign In / Register",
+    "📱 Scan & Go Terminal",
+    "🛒 Shopping Cart & Checkout",
+    "📊 Merchant Analytics",
+    "🔮 AI Demand Forecast (ML)"
+]
+
 # Session State Initialization
 if 'user' not in st.session_state:
     st.session_state.user = None
@@ -75,6 +84,12 @@ if 'last_scanned' not in st.session_state:
     st.session_state.last_scanned = None
 if 'discount_percent' not in st.session_state:
     st.session_state.discount_percent = 0.0
+if 'radio_menu' not in st.session_state:
+    st.session_state.radio_menu = nav_options[0]
+
+def switch_page(page_name: str):
+    st.session_state.radio_menu = page_name
+    st.rerun()
 
 # --- Helper Functions ---
 def get_db():
@@ -123,13 +138,15 @@ if st.session_state.user:
     if st.sidebar.button("🔒 Sign Out", type="secondary"):
         st.session_state.user = None
         st.session_state.cart = {}
+        st.session_state.radio_menu = nav_options[0]
         st.rerun()
 else:
     st.sidebar.info("Please sign in or use pre-configured demo account.")
 
 menu = st.sidebar.radio(
     "Navigation",
-    ["🔐 Sign In / Register", "📱 Scan & Go Terminal", "🛒 Shopping Cart & Checkout", "📊 Merchant Analytics", "🔮 AI Demand Forecast (ML)"]
+    nav_options,
+    key="radio_menu"
 )
 
 st.sidebar.markdown("---")
@@ -143,6 +160,23 @@ if menu == "🔐 Sign In / Register":
     st.title("🔐 Authentication Portal")
     st.caption("Access the Scan & Go shopper terminal or merchant dashboard.")
 
+    if st.session_state.user:
+        st.success(f"✅ **You are currently logged in as:** {st.session_state.user['email']}")
+        st.info("Select a destination below or click a page in the sidebar:")
+        
+        c_nav1, c_nav2, c_nav3 = st.columns(3)
+        with c_nav1:
+            if st.button("📱 Go to Scan & Go Terminal →", type="primary", use_container_width=True):
+                switch_page("📱 Scan & Go Terminal")
+        with c_nav2:
+            if st.button("📊 Go to Merchant Analytics →", use_container_width=True):
+                switch_page("📊 Merchant Analytics")
+        with c_nav3:
+            if st.button("🔮 Go to AI Demand Forecast →", use_container_width=True):
+                switch_page("🔮 AI Demand Forecast (ML)")
+
+        st.markdown("---")
+
     col1, col2 = st.columns([1, 1])
 
     with col1:
@@ -153,8 +187,7 @@ if menu == "🔐 Sign In / Register":
             user = db.query(User).filter(User.email == "test@scango.com").first()
             if user:
                 st.session_state.user = {"id": user.id, "email": user.email, "role": user.role}
-                st.success("Signed in as Demo Merchant!")
-                st.rerun()
+                switch_page("📱 Scan & Go Terminal")
             db.close()
 
     with col2:
@@ -169,8 +202,7 @@ if menu == "🔐 Sign In / Register":
                 user = db.query(User).filter(User.email == login_email).first()
                 if user and verify_password(login_pass, user.hashed_password):
                     st.session_state.user = {"id": user.id, "email": user.email, "role": user.role}
-                    st.success("Successfully authenticated!")
-                    st.rerun()
+                    switch_page("📱 Scan & Go Terminal")
                 else:
                     st.error("Invalid email or password.")
                 db.close()
@@ -191,8 +223,7 @@ if menu == "🔐 Sign In / Register":
                         db.commit()
                         db.refresh(new_u)
                         st.session_state.user = {"id": new_u.id, "email": new_u.email, "role": new_u.role}
-                        st.success("Account created successfully!")
-                        st.rerun()
+                        switch_page("📱 Scan & Go Terminal")
                     db.close()
                 else:
                     st.warning("Please enter email and password.")
