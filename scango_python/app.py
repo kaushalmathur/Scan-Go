@@ -10,58 +10,69 @@ import zxingcpp
 import cv2
 
 from database import (
-    init_db, SessionLocal, User, Merchant, Product, Transaction, CartItem, Scan,
+    init_db, SessionLocal, User, Merchant, Outlet, Product, Transaction, CartItem, Scan,
     hash_password, verify_password
 )
 from ml_engine import ml_pipeline
 
-# --- Page Configuration & Glassmorphic Custom CSS ---
+# --- Page Configuration & Dark Theme ---
 st.set_page_config(
-    page_title="Scan & Go — 100% Pure Python Platform",
+    page_title="Scan & Go — Multi-Outlet Retail Platform",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling (Dark Glassmorphic Theme)
+# Custom Styling (Dark Glassmorphism)
 st.markdown("""
 <style>
-    /* Dark Theme Setup */
     .stApp {
         background-color: #090d16;
         color: #f8fafc;
         font-family: 'Inter', system-ui, sans-serif;
     }
-    
-    /* Glassmorphic Cards */
-    .css-card {
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 1.25rem;
-        padding: 1.5rem;
-        box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
-        backdrop-filter: blur(16px);
-    }
-    
-    /* Stat Metric Boxes */
-    .metric-box {
+    .outlet-card {
         background: rgba(15, 23, 42, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.1);
-        border-radius: 1rem;
+        border-radius: 1.25rem;
         padding: 1.25rem;
-        text-align: center;
+        margin-bottom: 1rem;
     }
-    .metric-value {
-        font-size: 2.25rem;
-        font-weight: 900;
-        color: #00f5d4;
-    }
-    .metric-label {
+    .badge-in-stock {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.5rem;
         font-size: 0.75rem;
-        font-weight: 700;
-        color: #94a3b8;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
+        font-weight: 800;
+    }
+    .badge-out-stock {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+    .badge-offer {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 800;
+    }
+    .badge-new {
+        background: rgba(168, 85, 247, 0.15);
+        color: #c084fc;
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        padding: 0.2rem 0.6rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 800;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -69,76 +80,83 @@ st.markdown("""
 # Initialize Database Schema & Seed Data
 init_db()
 
-# Navigation Options
-nav_options = [
-    "🔐 Sign In / Register",
-    "📱 Scan & Go Terminal",
-    "🛒 Shopping Cart & Checkout",
-    "📊 Merchant Analytics",
-    "🔮 AI Demand Forecast (ML)"
-]
+# Helper DB Session
+def get_db():
+    return SessionLocal()
 
-# Session State Initialization
+# Session State Setup
 if 'user' not in st.session_state:
     st.session_state.user = None
+if 'active_outlet_id' not in st.session_state:
+    st.session_state.active_outlet_id = 1
 if 'cart' not in st.session_state:
-    st.session_state.cart = {} # {product_id: {'product': p, 'quantity': q}}
+    st.session_state.cart = {}
 if 'last_scanned' not in st.session_state:
     st.session_state.last_scanned = None
 if 'discount_percent' not in st.session_state:
     st.session_state.discount_percent = 0.0
-if 'radio_menu' not in st.session_state:
-    st.session_state.radio_menu = nav_options[0]
 
-def switch_page(page_name: str):
-    st.session_state.radio_menu = page_name
-    st.rerun()
+# Define Available Navigation Pages per Mode
+customer_pages = [
+    "🏬 Discover Physical Outlets",
+    "🔍 Pre-Visit Store Catalog",
+    "📱 In-Store Scan & Go",
+    "🛒 Cart & Checkout",
+    "🧾 Purchase & Receipt History"
+]
 
-# --- Helper Functions ---
-def get_db():
-    return SessionLocal()
+merchant_pages = [
+    "🏢 Outlets Management",
+    "📦 Product & Barcode Catalog",
+    "⚡ Stock & Offers Manager",
+    "📊 Sales Analytics & AI Engine"
+]
 
+if 'customer_page' not in st.session_state:
+    st.session_state.customer_page = customer_pages[0]
+if 'merchant_page' not in st.session_state:
+    st.session_state.merchant_page = merchant_pages[0]
+
+# --- QR & Barcode Image Decoder ---
 def decode_qr_or_barcode(image_file) -> str:
-    """Decodes QR codes and 1D/2D barcodes from image files using zxingcpp & OpenCV."""
     try:
         img = Image.open(image_file)
-        
-        # 1. Decode with zxing-cpp (Handles QR, EAN, UPC, Code128, DataMatrix)
         results = zxingcpp.read_barcodes(img)
         if results and len(results) > 0:
             return results[0].text.strip()
 
-        # 2. OpenCV QR Code Detector fallback
         img_np = np.array(img.convert('RGB'))
         detector = cv2.QRCodeDetector()
         val, _, _ = detector.detectAndDecode(img_np)
         if val and len(val.strip()) > 0:
             return val.strip()
-
     except Exception as e:
-        print("QR/Barcode decoding exception:", e)
-    
+        print("QR Decode exception:", e)
     return None
 
-def add_to_cart_by_barcode(barcode: str):
+def add_to_cart_by_barcode(barcode: str, outlet_id: int):
     db = get_db()
-    product = db.query(Product).filter(Product.barcode == barcode).first()
+    product = db.query(Product).filter(Product.barcode == barcode, Product.outlet_id == outlet_id).first()
     
     if not product:
-        # Auto-register barcode/QR if unknown so scans never fail
-        clean_name = f"QR Item ({barcode[:16]}...)" if len(barcode) > 16 else f"Scanned Item (#{barcode})"
-        product = Product(
-            merchant_id=1,
-            sku=f"QR-{barcode[-4:] if len(barcode)>=4 else '000'}",
-            name=clean_name,
-            price=4.99,
-            stock=100,
-            category="General Grocery",
-            barcode=barcode
-        )
-        db.add(product)
-        db.commit()
-        db.refresh(product)
+        # Fallback check any outlet or auto-register
+        product = db.query(Product).filter(Product.barcode == barcode).first()
+        if not product:
+            product = Product(
+                merchant_id=1,
+                outlet_id=outlet_id,
+                sku=f"QR-{barcode[-4:] if len(barcode)>=4 else '000'}",
+                name=f"Scanned Item (#{barcode[-6:] if len(barcode)>=6 else barcode})",
+                price=4.99,
+                original_price=4.99,
+                stock=100,
+                is_in_stock=True,
+                category="General Grocery",
+                barcode=barcode
+            )
+            db.add(product)
+            db.commit()
+            db.refresh(product)
 
     pid = product.id
     if pid in st.session_state.cart:
@@ -149,269 +167,270 @@ def add_to_cart_by_barcode(barcode: str):
             'name': product.name,
             'price': product.price,
             'barcode': product.barcode,
-            'quantity': 1
+            'quantity': 1,
+            'outlet_id': product.outlet_id
         }
     
     st.session_state.last_scanned = product.name
     db.close()
 
-# --- Sidebar Navigation ---
+# --- Sidebar Header & Navigation Controls ---
 st.sidebar.markdown("### 🛒 Scan & Go `PRO`")
-st.sidebar.caption("100% Pure Python Smart Retail Platform")
+st.sidebar.caption("Multi-Outlet Physical Discovery & Scan & Go Platform")
+
+# Platform Role Switcher Mode
+app_mode = st.sidebar.selectbox("Select User Experience", ["👥 Customer Portal", "🏢 Merchant Console"])
 
 if st.session_state.user:
     st.sidebar.success(f"Logged in as: **{st.session_state.user['email']}**")
     if st.sidebar.button("🔒 Sign Out", type="secondary"):
         st.session_state.user = None
         st.session_state.cart = {}
-        st.session_state.radio_menu = nav_options[0]
         st.rerun()
 else:
-    st.sidebar.info("Please sign in or use pre-configured demo account.")
+    st.sidebar.info("Please sign in or use demo accounts.")
+    if st.sidebar.button("⚡ 1-Click Demo Customer Login"):
+        db = get_db()
+        u = db.query(User).filter(User.email == "customer@scango.com").first()
+        if u:
+            st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+            st.rerun()
+        db.close()
 
-menu = st.sidebar.radio(
-    "Navigation",
-    nav_options,
-    key="radio_menu"
-)
+st.sidebar.markdown("---")
+
+# Render Radio Menu based on Mode
+if app_mode == "👥 Customer Portal":
+    current_idx = customer_pages.index(st.session_state.customer_page) if st.session_state.customer_page in customer_pages else 0
+    selected_page = st.sidebar.radio("Customer Navigation", customer_pages, index=current_idx)
+    st.session_state.customer_page = selected_page
+else:
+    current_idx = merchant_pages.index(st.session_state.merchant_page) if st.session_state.merchant_page in merchant_pages else 0
+    selected_page = st.sidebar.radio("Merchant Navigation", merchant_pages, index=current_idx)
+    st.session_state.merchant_page = selected_page
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("**Tech Stack (100% Python):**")
-st.sidebar.code("Streamlit • OpenCV • ZXing\nPandas • NumPy • Scikit-Learn")
+st.sidebar.code("Streamlit • OpenCV • ZXing\nSQLAlchemy • Pandas • Scikit-Learn")
 
-# -----------------------------------------------------------------------------
-# TAB 1: AUTHENTICATION
-# -----------------------------------------------------------------------------
-if menu == "🔐 Sign In / Register":
-    st.title("🔐 Authentication Portal")
-    st.caption("Access the Scan & Go shopper terminal or merchant dashboard.")
 
-    if st.session_state.user:
-        st.success(f"✅ **You are currently logged in as:** {st.session_state.user['email']}")
-        st.info("Select a destination below or click a page in the sidebar:")
-        
-        c_nav1, c_nav2, c_nav3 = st.columns(3)
-        with c_nav1:
-            if st.button("📱 Go to Scan & Go Terminal →", type="primary", use_container_width=True):
-                switch_page("📱 Scan & Go Terminal")
-        with c_nav2:
-            if st.button("📊 Go to Merchant Analytics →", use_container_width=True):
-                switch_page("📊 Merchant Analytics")
-        with c_nav3:
-            if st.button("🔮 Go to AI Demand Forecast →", use_container_width=True):
-                switch_page("🔮 AI Demand Forecast (ML)")
+# =============================================================================
+# 👥 CUSTOMER PORTAL EXPERIENCE
+# =============================================================================
+if app_mode == "👥 Customer Portal":
 
-        st.markdown("---")
+    # -------------------------------------------------------------------------
+    # 1. DISCOVER PHYSICAL OUTLETS
+    # -------------------------------------------------------------------------
+    if selected_page == "🏬 Discover Physical Outlets":
+        st.title("🏬 Discover Physical Outlets")
+        st.caption("Locate physical retail stores, check opening hours, and inspect live inventory *before* visiting.")
 
-    col1, col2 = st.columns([1, 1])
+        db = get_db()
+        outlets = db.query(Outlet).all()
+        db.close()
 
-    with col1:
-        st.markdown("### ⚡ Quick Demo Access")
-        st.info("Click the button below to auto-fill pre-configured demo credentials.")
-        if st.button("✨ Fill Demo Credentials (test@scango.com)", type="primary", use_container_width=True):
-            db = get_db()
-            user = db.query(User).filter(User.email == "test@scango.com").first()
-            if user:
-                st.session_state.user = {"id": user.id, "email": user.email, "role": user.role}
-                switch_page("📱 Scan & Go Terminal")
-            db.close()
+        # Search Bar
+        search_query = st.text_input("🔎 Search outlets by store name or city:", placeholder="e.g. Downtown or Greenfield")
 
-    with col2:
-        tab_login, tab_reg = st.tabs(["Sign In", "Create Account"])
-        
-        with tab_login:
-            login_email = st.text_input("Email Address", value="test@scango.com", key="login_email")
-            login_pass = st.text_input("Password", value="password123", type="password", key="login_pass")
-            
-            if st.button("Sign In to App", use_container_width=True):
-                db = get_db()
-                user = db.query(User).filter(User.email == login_email).first()
-                if user and verify_password(login_pass, user.hashed_password):
-                    st.session_state.user = {"id": user.id, "email": user.email, "role": user.role}
-                    switch_page("📱 Scan & Go Terminal")
-                else:
-                    st.error("Invalid email or password.")
-                db.close()
+        if search_query:
+            outlets = [o for o in outlets if search_query.lower() in o.name.lower() or search_query.lower() in o.city.lower()]
 
-        with tab_reg:
-            reg_email = st.text_input("New Email Address", key="reg_email")
-            reg_pass = st.text_input("New Password", type="password", key="reg_pass")
-            
-            if st.button("Create Account", use_container_width=True):
-                if reg_email and reg_pass:
-                    db = get_db()
-                    existing = db.query(User).filter(User.email == reg_email).first()
-                    if existing:
-                        st.error("User with this email already exists.")
-                    else:
-                        new_u = User(merchant_id=1, email=reg_email, hashed_password=hash_password(reg_pass))
-                        db.add(new_u)
-                        db.commit()
-                        db.refresh(new_u)
-                        st.session_state.user = {"id": new_u.id, "email": new_u.email, "role": new_u.role}
-                        switch_page("📱 Scan & Go Terminal")
-                    db.close()
-                else:
-                    st.warning("Please enter email and password.")
-
-# -----------------------------------------------------------------------------
-# TAB 2: SCAN & GO TERMINAL
-# -----------------------------------------------------------------------------
-elif menu == "📱 Scan & Go Terminal":
-    st.title("📱 Scan & Go Terminal")
-    st.caption("Point your camera or upload a QR Code / Barcode image to scan items directly into your cart.")
-
-    if not st.session_state.user:
-        st.warning("Please Sign In on the Auth tab first.")
-        st.stop()
-
-    if st.session_state.last_scanned:
-        st.success(f"🛒 **Just Added to Cart:** {st.session_state.last_scanned}")
-
-    # Manual Barcode Search Bar
-    st.markdown("### 🔎 Manual Barcode / QR Code Search")
-    col_input, col_btn = st.columns([4, 1])
-    with col_input:
-        input_code = st.text_input("Enter or paste barcode / QR code text:", placeholder="e.g. 123456789012 or https://...", label_visibility="collapsed")
-    with col_btn:
-        if st.button("Scan Code", type="primary", use_container_width=True):
-            if input_code:
-                add_to_cart_by_barcode(input_code)
-                st.rerun()
-
-    # Quick Store Item Chips for Instant Demo
-    st.markdown("### ⚡ Store Item Quick Barcode Chips")
-    st.caption("Click any item below to simulate instant barcode scan:")
-
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    chips = [
-        ("⚡ Energy Drink", "123456789012", c1),
-        ("🥛 Whole Milk", "8901030953613", c2),
-        ("🥔 Potato Chips", "079238237012", c3),
-        ("🍫 Chocolate Bar", "5000159461122", c4),
-        ("💧 Mineral Water", "3057640100473", c5),
-        ("☕ Coffee Beans", "8000070010567", c6),
-    ]
-
-    for label, code, col in chips:
-        with col:
-            if st.button(f"{label}", use_container_width=True):
-                add_to_cart_by_barcode(code)
-                st.rerun()
-
-    # Live Camera & Image File QR Reader
-    st.markdown("---")
-    st.markdown("### 🎥 Camera & Image QR Code / Barcode Decoder")
-    
-    col_cam, col_file = st.columns([1, 1])
-
-    with col_cam:
-        st.markdown("#### Option A: Live Camera Input")
-        camera_photo = st.camera_input("Point camera directly at QR Code or Barcode:")
-        if camera_photo:
-            decoded_text = decode_qr_or_barcode(camera_photo)
-            if decoded_text:
-                st.success(f"🎉 **QR / Barcode Decoded:** `{decoded_text}`")
-                add_to_cart_by_barcode(decoded_text)
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("⚠️ No QR code or Barcode detected in camera photo. Please hold camera closer with clear lighting and take photo again.")
-
-    with col_file:
-        st.markdown("#### Option B: Upload Image File")
-        uploaded_img = st.file_uploader("Upload QR Code or Barcode image file (PNG, JPG, WEBP):", type=["png", "jpg", "jpeg", "webp"])
-        if uploaded_img:
-            decoded_text = decode_qr_or_barcode(uploaded_img)
-            if decoded_text:
-                st.success(f"🎉 **Uploaded Image Decoded:** `{decoded_text}`")
-                add_to_cart_by_barcode(decoded_text)
-                time.sleep(1)
-                st.rerun()
-            else:
-                st.error("⚠️ Could not decode QR / Barcode from uploaded image file. Try a clearer image.")
-
-# -----------------------------------------------------------------------------
-# TAB 3: SHOPPING CART & CHECKOUT
-# -----------------------------------------------------------------------------
-elif menu == "🛒 Shopping Cart & Checkout":
-    st.title("🛒 Active Shopping Cart")
-    st.caption("Review item quantities, apply promo codes, and complete your queue-free checkout.")
-
-    if not st.session_state.cart:
-        st.info("Your shopping cart is currently empty. Go to **Scan & Go Terminal** to add items.")
-    else:
-        # Cart Table
-        cart_data = []
-        for pid, item in st.session_state.cart.items():
-            total = item['price'] * item['quantity']
-            cart_data.append({
-                "Product Name": item['name'],
-                "Barcode / QR": item['barcode'],
-                "Unit Price ($)": f"${item['price']:.2f}",
-                "Quantity": item['quantity'],
-                "Total ($)": f"${total:.2f}"
-            })
-
-        df_cart = pd.DataFrame(cart_data)
-        st.dataframe(df_cart, use_container_width=True)
-
-        # Quantity Adjuster
-        st.markdown("#### Adjust Item Quantities:")
-        cols = st.columns(len(st.session_state.cart))
-        for idx, (pid, item) in enumerate(list(st.session_state.cart.items())):
+        cols = st.columns(len(outlets) if outlets else 1)
+        for idx, o in enumerate(outlets):
             with cols[idx % len(cols)]:
-                st.write(f"**{item['name']}**")
-                new_q = st.number_input(f"Qty ({item['barcode'][-4:]})", min_value=0, value=item['quantity'], key=f"q_{pid}")
-                if new_q != item['quantity']:
-                    if new_q == 0:
-                        del st.session_state.cart[pid]
-                    else:
-                        st.session_state.cart[pid]['quantity'] = new_q
+                st.markdown(f"""
+                <div class="outlet-card">
+                    <h3>🏪 {o.name}</h3>
+                    <p style="color:#94a3b8; font-size:13px;">📍 {o.address}, {o.city}</p>
+                    <p style="color:#00f5d4; font-weight:bold; font-size:14px;">⚡ {o.distance_km} km away • {o.opening_hours}</p>
+                    <p style="color:#cbd5e1; font-size:12px;">📞 {o.contact_phone}</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                if st.button(f"🔍 Inspect Inventory & Offers ({o.name[:18]}...)", key=f"select_o_{o.id}", use_container_width=True):
+                    st.session_state.active_outlet_id = o.id
+                    st.session_state.customer_page = "🔍 Pre-Visit Store Catalog"
                     st.rerun()
 
+    # -------------------------------------------------------------------------
+    # 2. PRE-VISIT STORE CATALOG & STOCK INSPECTOR
+    # -------------------------------------------------------------------------
+    elif selected_page == "🔍 Pre-Visit Store Catalog":
+        db = get_db()
+        active_outlet = db.query(Outlet).filter(Outlet.id == st.session_state.active_outlet_id).first()
+        if not active_outlet:
+            active_outlet = db.query(Outlet).first()
+            st.session_state.active_outlet_id = active_outlet.id
+
+        st.title(f"🔍 Pre-Visit Catalog: {active_outlet.name}")
+        st.caption("Check real-time stock levels, prices, special discounts, and new product launches before physically visiting.")
+
+        st.info("💡 **Pre-Visit Notice:** Online home delivery is disabled. Use this catalog to verify stock availability, then physically visit the store to Scan & Go!")
+
+        # Outlet Selector Dropdown
+        all_outlets = db.query(Outlet).all()
+        selected_o_id = st.selectbox(
+            "Change Selected Physical Outlet:",
+            options=[o.id for o in all_outlets],
+            format_func=lambda x: next(o.name for o in all_outlets if o.id == x),
+            index=[o.id for o in all_outlets].index(st.session_state.active_outlet_id)
+        )
+        if selected_o_id != st.session_state.active_outlet_id:
+            st.session_state.active_outlet_id = selected_o_id
+            st.rerun()
+
+        # Product Filter Tabs
+        tab_all, tab_instock, tab_offers, tab_new = st.tabs([
+            "📦 All Products", 
+            "✅ In-Stock Only", 
+            "🏷️ Special Offers & Discounts", 
+            "🔥 New Product Launches"
+        ])
+
+        products = db.query(Product).filter(Product.outlet_id == st.session_state.active_outlet_id).all()
+        db.close()
+
+        def render_product_grid(prod_list):
+            if not prod_list:
+                st.warning("No products matching this filter criteria at this outlet.")
+                return
+
+            p_cols = st.columns(3)
+            for idx, p in enumerate(prod_list):
+                with p_cols[idx % 3]:
+                    st.markdown(f"#### {p.name}")
+                    
+                    # Badges
+                    badges_html = ""
+                    if p.is_in_stock and p.stock > 0:
+                        badges_html += f'<span class="badge-in-stock">In Stock ({p.stock} left)</span> '
+                    else:
+                        badges_html += '<span class="badge-out-stock">Out of Stock</span> '
+
+                    if p.discount_percent > 0:
+                        badges_html += f'<span class="badge-offer">{p.discount_percent:.0f}% OFF</span> '
+                    if p.is_new_launch:
+                        badges_html += '<span class="badge-new">🔥 New Launch</span>'
+
+                    st.markdown(badges_html, unsafe_allow_html=True)
+                    
+                    # Price Math
+                    if p.discount_percent > 0:
+                        st.markdown(f"**Price:** :green[${p.price:.2f}] ~(${p.original_price:.2f}~)")
+                    else:
+                        st.markdown(f"**Price:** **${p.price:.2f}**")
+
+                    st.caption(f"Category: {p.category} | Barcode: `{p.barcode}`")
+                    st.markdown("---")
+
+        with tab_all:
+            render_product_grid(products)
+        with tab_instock:
+            render_product_grid([p for p in products if p.is_in_stock and p.stock > 0])
+        with tab_offers:
+            render_product_grid([p for p in products if p.discount_percent > 0])
+        with tab_new:
+            render_product_grid([p for p in products if p.is_new_launch])
+
+    # -------------------------------------------------------------------------
+    # 3. IN-STORE SCAN & GO TERMINAL
+    # -------------------------------------------------------------------------
+    elif selected_page == "📱 In-Store Scan & Go":
+        db = get_db()
+        active_outlet = db.query(Outlet).filter(Outlet.id == st.session_state.active_outlet_id).first()
+        db.close()
+
+        st.title(f"📱 In-Store Scan & Go Terminal ({active_outlet.name if active_outlet else 'Store #01'})")
+        st.caption("Point your camera at product barcodes or QR codes while physically inside the store.")
+
+        if not st.session_state.user:
+            st.warning("Please Sign In or use 1-Click Demo Customer Login in the sidebar.")
+            st.stop()
+
+        if st.session_state.last_scanned:
+            st.success(f"🛒 **Scanned & Added to Cart:** {st.session_state.last_scanned}")
+
+        # Store Barcode Quick Chips
+        st.markdown("### ⚡ Quick Store Barcode Scan Chips")
+        db = get_db()
+        outlet_products = db.query(Product).filter(Product.outlet_id == st.session_state.active_outlet_id).all()
+        db.close()
+
+        chip_cols = st.columns(len(outlet_products) if outlet_products else 1)
+        for idx, p in enumerate(outlet_products):
+            with chip_cols[idx % len(chip_cols)]:
+                if st.button(f"{p.name[:14]}.. (${p.price:.2f})", key=f"chip_scan_{p.id}", use_container_width=True):
+                    add_to_cart_by_barcode(p.barcode, st.session_state.active_outlet_id)
+                    st.rerun()
+
+        # Camera & File Decoder
         st.markdown("---")
-        # Cost Mathematics
-        subtotal = sum(i['price'] * i['quantity'] for i in st.session_state.cart.values())
-        
-        # Promo Code Engine
-        col_promo, col_calc = st.columns([1, 1])
-        with col_promo:
-          st.markdown("#### 🏷️ Apply Promo Code")
-          promo = st.text_input("Enter code:", placeholder="Try SCANGO10").strip().upper()
-          if st.button("Apply Discount"):
-              if promo in ["SCANGO10", "PROMO10"]:
-                  st.session_state.discount_percent = 0.10
-                  st.success("10% Discount Applied!")
-              elif promo == "SCANGO20":
-                  st.session_state.discount_percent = 0.20
-                  st.success("20% VIP Discount Applied!")
-              else:
-                  st.error("Invalid promo code.")
+        c_cam, c_file = st.columns([1, 1])
 
-        with col_calc:
-            discount_val = subtotal * st.session_state.discount_percent
-            taxable = subtotal - discount_val
-            tax_val = taxable * 0.18
-            grand_total = taxable + tax_val
+        with c_cam:
+            st.markdown("#### Option A: Live Camera Input")
+            camera_photo = st.camera_input("Point camera at product barcode:")
+            if camera_photo:
+                decoded_text = decode_qr_or_barcode(camera_photo)
+                if decoded_text:
+                    st.success(f"🎉 Decoded Barcode: `{decoded_text}`")
+                    add_to_cart_by_barcode(decoded_text, st.session_state.active_outlet_id)
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("⚠️ No barcode recognized. Center code and take photo again.")
 
-            st.markdown(f"**Subtotal:** ${subtotal:.2f}")
-            if discount_val > 0:
-                st.markdown(f"**Discount:** -${discount_val:.2f}")
-            st.markdown(f"**Sales Tax (18%):** ${tax_val:.2f}")
-            st.markdown(f"### **Grand Total:** :green[${grand_total:.2f}]")
+        with c_file:
+            st.markdown("#### Option B: Upload Image File")
+            up_file = st.file_uploader("Upload barcode/QR image file:", type=["png", "jpg", "jpeg"])
+            if up_file:
+                decoded_text = decode_qr_or_barcode(up_file)
+                if decoded_text:
+                    st.success(f"🎉 Decoded Image: `{decoded_text}`")
+                    add_to_cart_by_barcode(decoded_text, st.session_state.active_outlet_id)
+                    time.sleep(1)
+                    st.rerun()
+                else:
+                    st.error("⚠️ Could not decode barcode from image.")
 
+    # -------------------------------------------------------------------------
+    # 4. CART & CHECKOUT
+    # -------------------------------------------------------------------------
+    elif selected_page == "🛒 Cart & Checkout":
+        st.title("🛒 Active Shopping Cart & Checkout")
+
+        if not st.session_state.cart:
+            st.info("Your cart is currently empty. Visit **📱 In-Store Scan & Go** to scan items.")
+        else:
+            cart_list = []
+            for pid, item in st.session_state.cart.items():
+                cart_list.append({
+                    "Product Name": item['name'],
+                    "Barcode": item['barcode'],
+                    "Price ($)": f"${item['price']:.2f}",
+                    "Qty": item['quantity'],
+                    "Total ($)": f"${(item['price'] * item['quantity']):.2f}"
+                })
+            
+            st.dataframe(pd.DataFrame(cart_list), use_container_width=True)
+
+            subtotal = sum(i['price'] * i['quantity'] for i in st.session_state.cart.values())
+            tax = subtotal * 0.18
+            grand_total = subtotal + tax
+
+            st.markdown(f"### Grand Total: :green[${grand_total:.2f}] (includes 18% Sales Tax)")
             payment_method = st.selectbox("Payment Method", ["Credit / Debit Card", "Apple Pay / Instant", "Store App Wallet"])
 
-            if st.button("💳 Confirm & Complete Checkout", type="primary", use_container_width=True):
-                # Save Transaction to Database
+            if st.button("💳 Pay & Generate Digital Receipt", type="primary", use_container_width=True):
                 db = get_db()
                 txn = Transaction(
                     user_id=st.session_state.user['id'] if st.session_state.user else 1,
                     merchant_id=1,
+                    outlet_id=st.session_state.active_outlet_id,
                     subtotal=subtotal,
-                    discount=discount_val,
-                    tax=tax_val,
+                    discount=0.0,
+                    tax=tax,
                     total_amount=grand_total,
                     payment_method=payment_method
                 )
@@ -419,137 +438,207 @@ elif menu == "🛒 Shopping Cart & Checkout":
                 db.commit()
                 db.refresh(txn)
 
-                # Save Cart Items
-                for i in st.session_state.cart.values():
-                    c_item = CartItem(
-                        transaction_id=txn.id,
-                        product_id=i['product_id'],
-                        quantity=i['quantity'],
-                        unit_price=i['price']
-                    )
-                    db.add(c_item)
-
-                    # Deduct stock
-                    prod = db.query(Product).filter(Product.id == i['product_id']).first()
+                for item in st.session_state.cart.values():
+                    ci = CartItem(transaction_id=txn.id, product_id=item['product_id'], quantity=item['quantity'], unit_price=item['price'])
+                    db.add(ci)
+                    # Automatic Stock Deduction
+                    prod = db.query(Product).filter(Product.id == item['product_id']).first()
                     if prod:
-                        prod.stock = max(0, prod.stock - i['quantity'])
+                        prod.stock = max(0, prod.stock - item['quantity'])
+                        if prod.stock == 0:
+                            prod.is_in_stock = False
 
                 db.commit()
                 db.close()
 
                 st.balloons()
-                st.success(f"🎉 Payment Successful! Receipt #{txn.id} generated.")
+                st.success(f"🎉 Checkout Complete! Receipt #{txn.id} generated & stock updated.")
                 st.session_state.cart = {}
-                st.session_state.discount_percent = 0.0
 
-# -----------------------------------------------------------------------------
-# TAB 4: MERCHANT ANALYTICS (PANDAS & NUMPY)
-# -----------------------------------------------------------------------------
-elif menu == "📊 Merchant Analytics":
-    st.title("📊 Merchant Operations & Data Analytics")
-    st.caption("Real-time store metrics powered by Pandas DataFrames & NumPy numerical processing.")
+    # -------------------------------------------------------------------------
+    # 5. PURCHASE & RECEIPT HISTORY
+    # -------------------------------------------------------------------------
+    elif selected_page == "🧾 Purchase & Receipt History":
+        st.title("🧾 Digital Receipt & Purchase History")
 
-    # Fetch Data via SQLAlchemy & Process with Pandas
-    db = get_db()
-    total_rev = db.query(Transaction).filter(Transaction.status == "completed").all()
-    revenue_val = sum(t.total_amount for t in total_rev) if total_rev else 14850.50
-    active_shoppers = db.query(User).count()
-    db.close()
+        if not st.session_state.user:
+            st.warning("Please sign in to view purchase history.")
+            st.stop()
 
-    # KPI Metrics Row
-    k1, k2, k3, k4 = st.columns(4)
-    k1.metric("Gross Revenue", f"${revenue_val:,.2f}", "+14.2% vs last week")
-    k2.metric("Active Shoppers", f"{active_shoppers}", "Live In-Store")
-    k3.metric("Scans / Hour", "42.5", "+5.1%")
-    k4.metric("Avg Basket Value", "$28.40", "Per Customer")
-
-    st.markdown("---")
-
-    # Pandas DataFrame Historical Processing
-    st.markdown("### 📈 Revenue Trends (Processed via Pandas)")
-    dates = [datetime.now() - timedelta(days=i) for i in range(7)][::-1]
-    sales_arr = np.array([1400, 1850, 1600, 2400, 2100, 2900, 2600])
-
-    df_sales = pd.DataFrame({
-        'Date': [d.strftime('%b %d') for d in dates],
-        'Revenue ($)': sales_arr,
-        'Rolling 3-Day Mean': pd.Series(sales_arr).rolling(3, min_periods=1).mean()
-    })
-
-    fig_rev = px.area(df_sales, x='Date', y='Revenue ($)', title="Daily Store Sales ($)", color_discrete_sequence=['#00f5d4'])
-    fig_rev.update_layout(template="plotly_dark", height=320)
-    st.plotly_chart(fig_rev, use_container_width=True)
-
-    # Category Breakdown via NumPy & Pandas
-    col_cat, col_stock = st.columns([1, 1])
-
-    with col_cat:
-        st.markdown("### 🍕 Category Sales Breakdown")
-        df_cats = ml_pipeline.compute_category_statistics([])
-        fig_bar = px.bar(df_cats, x='Category', y='Revenue ($)', color='Category', title="Revenue by Department")
-        fig_bar.update_layout(template="plotly_dark", height=300)
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-    with col_stock:
-        st.markdown("### ⚠️ Inventory Monitor")
         db = get_db()
-        products_list = db.query(Product).all()
+        txns = db.query(Transaction).filter(Transaction.user_id == st.session_state.user['id']).all()
         db.close()
 
-        stock_data = [{
-            "Item": p.name,
-            "SKU": p.sku,
-            "Price": f"${p.price:.2f}",
-            "Stock Level": p.stock,
-            "Status": "⚠️ Low Stock" if p.stock < 50 else "✅ Normal"
-        } for p in products_list]
+        if not txns:
+            st.info("No past receipts found. Complete a checkout in the **In-Store Scan & Go** terminal.")
+        else:
+            for t in txns[::-1]:
+                with st.expander(f"🧾 Receipt #{t.id} — ${t.total_amount:.2f} ({t.created_at.strftime('%b %d, %Y %I:%M %p')})"):
+                    st.write(f"**Payment Method:** {t.payment_method}")
+                    st.write(f"**Status:** {t.status.upper()}")
+                    st.write(f"**Total Paid:** ${t.total_amount:.2f}")
 
-        df_stock = pd.DataFrame(stock_data)
-        st.dataframe(df_stock, use_container_width=True)
 
-# -----------------------------------------------------------------------------
-# TAB 5: AI / MACHINE LEARNING DEMAND FORECAST
-# -----------------------------------------------------------------------------
-elif menu == "🔮 AI Demand Forecast (ML)":
-    st.title("🔮 AI / Machine Learning Engine")
-    st.caption("Scikit-Learn Random Forest Regressor & Logistic Regression Churn Risk Engine.")
+# =============================================================================
+# 🏢 MERCHANT CONSOLE EXPERIENCE
+# =============================================================================
+else:
 
-    col_ml1, col_ml2 = st.columns([2, 1])
+    # -------------------------------------------------------------------------
+    # 1. OUTLETS MANAGEMENT
+    # -------------------------------------------------------------------------
+    if selected_page == "🏢 Outlets Management":
+        st.title("🏢 Outlets Management")
+        st.caption("Add and manage your physical retail store outlets.")
 
-    with col_ml1:
-        st.markdown("### 🔮 Random Forest 7-Day Demand Forecast")
-        st.caption("Model R² Score: **0.87** (High Accuracy Ensemble)")
+        db = get_db()
+        outlets = db.query(Outlet).all()
+        db.close()
 
-        n_days = st.slider("Select Forecast Horizon (Days):", min_value=3, max_value=30, value=7)
-        
-        # Invoke Scikit-Learn Model Forecast
-        df_forecast = ml_pipeline.forecast_next_ndays(n_days)
+        col_list, col_add = st.columns([2, 1])
 
-        fig_ml = go.Figure()
-        fig_ml.add_trace(go.Scatter(x=df_forecast['Date'], y=df_forecast['Predicted Sales ($)'], mode='lines+markers', name='Predicted Sales', line=dict(color='#a855f7', width=3)))
-        fig_ml.add_trace(go.Scatter(x=df_forecast['Date'], y=df_forecast['Upper Bound ($)'], mode='lines', name='Upper Bound (10%)', line=dict(color='#38bdf8', dash='dash')))
-        fig_ml.add_trace(go.Scatter(x=df_forecast['Date'], y=df_forecast['Lower Bound ($)'], mode='lines', name='Lower Bound (10%)', line=dict(color='#ef4444', dash='dash')))
-        
-        fig_ml.update_layout(template="plotly_dark", title=f"{n_days}-Day Predictive Sales Curve ($)", height=350)
-        st.plotly_chart(fig_ml, use_container_width=True)
+        with col_list:
+            st.markdown("### Active Store Outlets")
+            for o in outlets:
+                st.markdown(f"""
+                <div class="outlet-card">
+                    <h4>🏪 {o.name}</h4>
+                    <p style="color:#94a3b8; font-size:12px;">Address: {o.address}, {o.city} | Phone: {o.contact_phone}</p>
+                    <p style="color:#00f5d4; font-size:12px; font-weight:bold;">Distance: {o.distance_km} km | Hours: {o.opening_hours}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
-        st.markdown("#### Scikit-Learn Forecast DataFrame:")
-        st.dataframe(df_forecast, use_container_width=True)
-
-    with col_ml2:
-        st.markdown("### 🎯 Churn Risk Predictor")
-        st.caption("Logistic Regression Classification")
-
-        days_inactive = st.number_input("Days Inactive:", min_value=1, max_value=90, value=5)
-        scans_count = st.number_input("Historical Scans:", min_value=1, max_value=100, value=18)
-        spend_val = st.number_input("Total Spend ($):", min_value=1.0, max_value=1000.0, value=145.0)
-
-        if st.button("Run ML Churn Inference", type="primary", use_container_width=True):
-            churn_res = ml_pipeline.predict_user_churn(days_inactive, scans_count, spend_val)
+        with col_add:
+            st.markdown("### ➕ Add New Store Outlet")
+            o_name = st.text_input("Store Outlet Name:", placeholder="e.g. Uptown Hypermarket #04")
+            o_addr = st.text_input("Street Address:", placeholder="e.g. 500 Market Blvd")
+            o_city = st.text_input("City:", value="Central City")
+            o_dist = st.number_input("Distance (km):", min_value=0.1, value=1.5)
             
-            st.markdown(f"### Churn Probability: :red[{churn_res['churn_probability']}%]")
-            st.write(f"**Risk Level:** {churn_res['risk_level']}")
-            if churn_res['is_at_risk']:
-                st.error("⚠️ Customer identified as High Risk of abandonment! Send promo code.")
-            else:
-                st.success("✅ Customer is Active & Retained.")
+            if st.button("Save New Outlet", type="primary", use_container_width=True):
+                if o_name and o_addr:
+                    db = get_db()
+                    new_outlet = Outlet(merchant_id=1, name=o_name, address=o_addr, city=o_city, distance_km=o_dist)
+                    db.add(new_outlet)
+                    db.commit()
+                    db.close()
+                    st.success("New store outlet created successfully!")
+                    st.rerun()
+
+    # -------------------------------------------------------------------------
+    # 2. PRODUCT & BARCODE CATALOG
+    # -------------------------------------------------------------------------
+    elif selected_page == "📦 Product & Barcode Catalog":
+        st.title("📦 Product & Barcode Management")
+
+        db = get_db()
+        outlets = db.query(Outlet).all()
+
+        col_p_list, col_p_add = st.columns([2, 1])
+
+        with col_p_list:
+            st.markdown("### Existing Products Catalog")
+            prods = db.query(Product).all()
+            p_data = [{
+                "ID": p.id,
+                "Outlet": next((o.name[:15] for o in outlets if o.id == p.outlet_id), "Store #01"),
+                "Name": p.name,
+                "Barcode": p.barcode,
+                "Price ($)": f"${p.price:.2f}",
+                "Stock": p.stock,
+                "Status": "In Stock" if p.is_in_stock else "Out of Stock",
+                "New Launch": "🔥 Yes" if p.is_new_launch else "No"
+            } for p in prods]
+
+            st.dataframe(pd.DataFrame(p_data), use_container_width=True)
+
+        with col_p_add:
+            st.markdown("### ➕ Add Product to Outlet")
+            target_o_id = st.selectbox("Select Target Outlet:", options=[o.id for o in outlets], format_func=lambda x: next(o.name for o in outlets if o.id == x))
+            p_name = st.text_input("Product Name:")
+            p_price = st.number_input("Selling Price ($):", min_value=0.5, value=4.99)
+            p_stock = st.number_input("Initial Stock Quantity:", min_value=0, value=50)
+            p_cat = st.text_input("Category:", value="Beverages")
+            p_code = st.text_input("Barcode Number:", value=f"890{int(time.time())}"[-12:])
+
+            if st.button("Create Product & Generate Barcode", type="primary", use_container_width=True):
+                if p_name:
+                    new_p = Product(
+                        merchant_id=1,
+                        outlet_id=target_o_id,
+                        sku=f"SKU-{p_code[-4:]}",
+                        name=p_name,
+                        price=p_price,
+                        original_price=p_price,
+                        stock=p_stock,
+                        is_in_stock=p_stock > 0,
+                        category=p_cat,
+                        barcode=p_code
+                    )
+                    db.add(new_p)
+                    db.commit()
+                    st.success(f"Product '{p_name}' added to outlet!")
+                    st.rerun()
+        db.close()
+
+    # -------------------------------------------------------------------------
+    # 3. STOCK & OFFERS MANAGER
+    # -------------------------------------------------------------------------
+    elif selected_page == "⚡ Stock & Offers Manager":
+        st.title("⚡ Stock & Promotional Offers Control")
+        st.caption("Update stock quantities, toggle availability status, configure discounts, and tag new launches.")
+
+        db = get_db()
+        prods = db.query(Product).all()
+
+        st.markdown("### Update Stock, Offers & Launches:")
+        for p in prods:
+            with st.expander(f"📦 {p.name} (Barcode: {p.barcode} | Current Stock: {p.stock})"):
+                c_s1, c_s2, c_s3, c_s4 = st.columns(4)
+                
+                with c_s1:
+                    new_stock = st.number_input(f"Stock Qty", min_value=0, value=p.stock, key=f"stk_{p.id}")
+                with c_s2:
+                    in_stock_toggle = st.checkbox("Mark In Stock", value=p.is_in_stock, key=f"chk_stk_{p.id}")
+                with c_s3:
+                    discount = st.number_input("Discount %", min_value=0.0, max_value=80.0, value=p.discount_percent, key=f"disc_{p.id}")
+                with c_s4:
+                    new_launch_toggle = st.checkbox("🔥 Tag New Launch", value=p.is_new_launch, key=f"chk_launch_{p.id}")
+
+                if st.button("Save Changes", key=f"btn_save_p_{p.id}"):
+                    p.stock = new_stock
+                    p.is_in_stock = in_stock_toggle and (new_stock > 0)
+                    p.discount_percent = discount
+                    if discount > 0:
+                        p.price = round(p.original_price * (1 - (discount / 100)), 2)
+                    else:
+                        p.price = p.original_price
+                    p.is_new_launch = new_launch_toggle
+                    db.commit()
+                    st.success(f"Updated {p.name}!")
+                    st.rerun()
+        db.close()
+
+    # -------------------------------------------------------------------------
+    # 4. SALES ANALYTICS & AI ENGINE
+    # -------------------------------------------------------------------------
+    elif selected_page == "📊 Sales Analytics & AI Engine":
+        st.title("📊 Merchant Analytics & AI Forecast Engine")
+
+        db = get_db()
+        txns = db.query(Transaction).all()
+        db.close()
+
+        total_rev = sum(t.total_amount for t in txns) if txns else 14850.50
+
+        k1, k2, k3 = st.columns(3)
+        k1.metric("Gross Revenue", f"${total_rev:,.2f}", "+18.4%")
+        k2.metric("Total Transactions", f"{len(txns)} Orders", "Live Completed")
+        k3.metric("Scans / Hour", "42.5", "+5.1%")
+
+        st.markdown("---")
+        st.markdown("### 🔮 Scikit-Learn 7-Day Sales Forecast")
+        df_forecast = ml_pipeline.forecast_next_ndays(7)
+        fig_ml = px.area(df_forecast, x='Date', y='Predicted Sales ($)', title="AI Predicted Sales Demand ($)", color_discrete_sequence=['#a855f7'])
+        fig_ml.update_layout(template="plotly_dark", height=320)
+        st.plotly_chart(fig_ml, use_container_width=True)
