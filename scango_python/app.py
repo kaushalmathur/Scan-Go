@@ -25,30 +25,40 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- Executive Glassmorphic CSS Styling ---
+# --- Executive Custom CSS Styling ---
 st.markdown("""
 <style>
-    /* Global Theme Setup */
+    /* Global Background Gradient */
     .stApp {
         background: radial-gradient(circle at 50% 0%, #0f172a 0%, #090d16 100%);
         color: #f8fafc;
         font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
     }
     
-    /* Header Banner */
+    /* App Header Banner */
     .app-header {
-        background: linear-gradient(135deg, rgba(2, 128, 144, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%);
-        border: 1px solid rgba(0, 245, 212, 0.2);
+        background: linear-gradient(135deg, rgba(2, 128, 144, 0.3) 0%, rgba(15, 23, 42, 0.85) 100%);
+        border: 1px solid rgba(0, 245, 212, 0.25);
         border-radius: 1.5rem;
         padding: 1.5rem 2rem;
         margin-bottom: 1.5rem;
-        box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5);
+        box-shadow: 0 20px 35px -10px rgba(0, 0, 0, 0.5);
         backdrop-filter: blur(16px);
     }
+
+    /* Auth Feature Cards */
+    .auth-feature-card {
+        background: rgba(15, 23, 42, 0.85);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 1.25rem;
+        padding: 1.25rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    }
     
-    /* Glassmorphic Outlet Card */
+    /* Outlet Card */
     .outlet-card {
-        background: rgba(15, 23, 42, 0.75);
+        background: rgba(15, 23, 42, 0.8);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 1.25rem;
         padding: 1.5rem;
@@ -60,16 +70,16 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* Product Cards */
+    /* Product Card */
     .product-card {
-        background: rgba(15, 23, 42, 0.8);
+        background: rgba(15, 23, 42, 0.85);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 1.25rem;
         padding: 1.25rem;
         box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
     }
     
-    /* Status Badges */
+    /* Badges */
     .badge-in-stock {
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
@@ -127,8 +137,9 @@ if 'last_scanned' not in st.session_state:
 if 'discount_percent' not in st.session_state:
     st.session_state.discount_percent = 0.0
 
-# Available Navigation Pages per Mode
+# Available Navigation Pages
 customer_pages = [
+    "🔐 Account Sign In & Register",
     "🏬 Discover Physical Outlets",
     "🔍 Pre-Visit Store Catalog",
     "📱 In-Store Scan & Go",
@@ -137,6 +148,7 @@ customer_pages = [
 ]
 
 merchant_pages = [
+    "🔐 Account Sign In & Register",
     "🏢 Outlets Management",
     "📦 Product & Barcode Catalog",
     "⚡ Stock & Offers Manager",
@@ -206,18 +218,18 @@ def add_to_cart_by_barcode(barcode: str, outlet_id: int):
 
 # --- Sidebar Header & Navigation ---
 st.sidebar.markdown("### 🛒 Scan & Go `PRO`")
-st.sidebar.caption("100% Pure Python Smart Retail Platform")
+st.sidebar.caption("Multi-Outlet Physical Discovery & Scan & Go Platform")
 
-app_mode = st.sidebar.selectbox("Select Application Experience Mode", ["👥 Customer Experience Portal", "🏢 Merchant Management Console"])
+app_mode = st.sidebar.selectbox("Select Experience Portal", ["👥 Customer Experience Portal", "🏢 Merchant Management Console"])
 
 if st.session_state.user:
-    st.sidebar.success(f"Logged in as: **{st.session_state.user['email']}**")
+    st.sidebar.success(f"Logged in as: **{st.session_state.user['email']}** ({st.session_state.user['role'].upper()})")
     if st.sidebar.button("🔒 Sign Out", type="secondary"):
         st.session_state.user = None
         st.session_state.cart = {}
         st.rerun()
 else:
-    st.sidebar.info("Please sign in or use 1-click demo accounts.")
+    st.sidebar.info("Please sign in or use 1-click demo buttons below.")
     c_side1, c_side2 = st.columns(2)
     with c_side1:
         if st.sidebar.button("⚡ Demo Customer"):
@@ -225,6 +237,7 @@ else:
             u = db.query(User).filter(User.email == "customer@scango.com").first()
             if u:
                 st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                st.session_state.customer_page = "🏬 Discover Physical Outlets"
                 st.rerun()
             db.close()
     with c_side2:
@@ -233,6 +246,7 @@ else:
             u = db.query(User).filter(User.email == "test@scango.com").first()
             if u:
                 st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                st.session_state.merchant_page = "🏢 Outlets Management"
                 st.rerun()
             db.close()
 
@@ -267,7 +281,7 @@ st.markdown(f"""
             <span style="background:rgba(0, 245, 212, 0.15); color:#00f5d4; font-size:11px; font-weight:800; padding:0.3rem 0.8rem; border-radius:1rem; border:1px solid rgba(0, 245, 212, 0.3); text-transform:uppercase;">
                 🟢 Live In-Store System
             </span>
-            <h2 style="margin:0.4rem 0 0 0; color:#ffffff; font-weight:900; letter-spacing:-0.03em;">🛒 Scan & Go — Queue-Free Retail</h2>
+            <h2 style="margin:0.4rem 0 0 0; color:#ffffff; font-weight:900; letter-spacing:-0.03em;">🛒 Scan & Go — Queue-Free Retail Platform</h2>
             <p style="margin:0.2rem 0 0 0; color:#94a3b8; font-size:13px;">Selected Outlet: <b>📍 {outlet_display}</b></p>
         </div>
         <div style="background:rgba(15, 23, 42, 0.9); border:1px solid rgba(255, 255, 255, 0.1); padding:0.75rem 1.25rem; border-radius:1rem; text-align:right;">
@@ -280,9 +294,130 @@ st.markdown(f"""
 
 
 # =============================================================================
+# 🔐 COMMON AUTHENTICATION PAGE (AVAILABLE IN BOTH MODES)
+# =============================================================================
+if selected_page == "🔐 Account Sign In & Register":
+    st.title("🔐 Authentication Portal")
+    st.caption("Access the Scan & Go shopper terminal, pre-visit stock inspector, or merchant management console.")
+
+    if st.session_state.user:
+        st.success(f"✅ **You are signed in as:** `{st.session_state.user['email']}`")
+        st.info("Select a destination below to enter the platform:")
+        
+        c_nav1, c_nav2, c_nav3 = st.columns(3)
+        with c_nav1:
+            if st.button("🏬 Discover Physical Outlets →", type="primary", use_container_width=True):
+                st.session_state.customer_page = "🏬 Discover Physical Outlets"
+                st.rerun()
+        with c_nav2:
+            if st.button("🔍 Inspect Pre-Visit Store Catalog →", use_container_width=True):
+                st.session_state.customer_page = "🔍 Pre-Visit Store Catalog"
+                st.rerun()
+        with c_nav3:
+            if st.button("📊 Launch Merchant Analytics →", use_container_width=True):
+                st.session_state.merchant_page = "📊 Sales Analytics & AI Engine"
+                st.rerun()
+
+        st.markdown("---")
+
+    col_auth_left, col_auth_right = st.columns([1, 1])
+
+    with col_auth_left:
+        st.markdown("### ✨ Platform Capabilities")
+        
+        st.markdown("""
+        <div class="auth-feature-card">
+            <h4 style="margin:0; color:#00f5d4;">📱 Pre-Visit Stock Inspection</h4>
+            <p style="margin:0.3rem 0 0 0; color:#94a3b8; font-size:12px;">Browse physical store shelf inventory, check live In-Stock / Out-of-Stock status, view special discounts, and see new arrivals before physically visiting.</p>
+        </div>
+        
+        <div class="auth-feature-card">
+            <h4 style="margin:0; color:#38bdf8;">🎥 In-Store Barcode & QR Scan & Go</h4>
+            <p style="margin:0.3rem 0 0 0; color:#94a3b8; font-size:12px;">Scan product barcodes or QR codes directly using your phone's camera, add items to cart, and checkout instantly — bypassing cash register lines.</p>
+        </div>
+
+        <div class="auth-feature-card">
+            <h4 style="margin:0; color:#a855f7;">🔮 Scikit-Learn AI Demand Forecasting</h4>
+            <p style="margin:0.3rem 0 0 0; color:#94a3b8; font-size:12px;">Merchant analytics dashboard equipped with Random Forest inventory demand forecasting and customer churn risk classification.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("#### ⚡ 1-Click Fast Login")
+        c_demo1, c_demo2 = st.columns(2)
+        with c_demo1:
+            if st.button("✨ Demo Customer", type="primary", use_container_width=True):
+                db = get_db()
+                u = db.query(User).filter(User.email == "customer@scango.com").first()
+                if u:
+                    st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                    st.session_state.customer_page = "🏬 Discover Physical Outlets"
+                    st.rerun()
+                db.close()
+        with c_demo2:
+            if st.button("⚡ Demo Merchant", use_container_width=True):
+                db = get_db()
+                u = db.query(User).filter(User.email == "test@scango.com").first()
+                if u:
+                    st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                    st.session_state.merchant_page = "🏢 Outlets Management"
+                    st.rerun()
+                db.close()
+
+    with col_auth_right:
+        tab_login, tab_reg = st.tabs(["Sign In", "Create Account"])
+        
+        with tab_login:
+            login_email = st.text_input("Email Address", value="customer@scango.com", key="login_email_input")
+            login_pass = st.text_input("Password", value="password123", type="password", key="login_pass_input")
+            
+            if st.button("Sign In to App", type="primary", use_container_width=True):
+                db = get_db()
+                user = db.query(User).filter(User.email == login_email).first()
+                if user and verify_password(login_pass, user.hashed_password):
+                    st.session_state.user = {"id": user.id, "email": user.email, "role": user.role}
+                    if user.role == "merchant":
+                        st.session_state.merchant_page = "🏢 Outlets Management"
+                    else:
+                        st.session_state.customer_page = "🏬 Discover Physical Outlets"
+                    st.success("Successfully authenticated!")
+                    st.rerun()
+                else:
+                    st.error("Invalid email or password.")
+                db.close()
+
+        with tab_reg:
+            reg_email = st.text_input("New Email Address", key="reg_email_input")
+            reg_pass = st.text_input("New Password", type="password", key="reg_pass_input")
+            reg_role = st.selectbox("Register Account Type:", ["Shopper / Customer", "Store Merchant"])
+
+            if st.button("Create Account", use_container_width=True):
+                if reg_email and reg_pass:
+                    db = get_db()
+                    existing = db.query(User).filter(User.email == reg_email).first()
+                    if existing:
+                        st.error("User with this email already exists.")
+                    else:
+                        role_str = "merchant" if "Merchant" in reg_role else "shopper"
+                        new_u = User(merchant_id=1, email=reg_email, hashed_password=hash_password(reg_pass), role=role_str)
+                        db.add(new_u)
+                        db.commit()
+                        db.refresh(new_u)
+                        st.session_state.user = {"id": new_u.id, "email": new_u.email, "role": new_u.role}
+                        if role_str == "merchant":
+                            st.session_state.merchant_page = "🏢 Outlets Management"
+                        else:
+                            st.session_state.customer_page = "🏬 Discover Physical Outlets"
+                        st.success("Account created successfully!")
+                        st.rerun()
+                    db.close()
+                else:
+                    st.warning("Please enter email and password.")
+
+
+# =============================================================================
 # 👥 CUSTOMER PORTAL EXPERIENCE
 # =============================================================================
-if app_mode == "👥 Customer Experience Portal":
+elif app_mode == "👥 Customer Experience Portal":
 
     # -------------------------------------------------------------------------
     # 1. DISCOVER PHYSICAL OUTLETS
@@ -474,10 +609,10 @@ if app_mode == "👥 Customer Experience Portal":
                     "Barcode / QR": item['barcode'],
                     "Unit Price ($)": f"${item['price']:.2f}",
                     "Quantity": item['quantity'],
-                    "Total ($)": f"${total:.2f}"
+                    "Total ($)": f"${(item['price'] * item['quantity']):.2f}"
                 })
 
-            df_cart = pd.DataFrame(cart_data if 'cart_data' in locals() else cart_list)
+            df_cart = pd.DataFrame(cart_list)
             st.dataframe(df_cart, use_container_width=True)
 
             subtotal = sum(i['price'] * i['quantity'] for i in st.session_state.cart.values())
