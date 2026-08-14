@@ -5,6 +5,8 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import time
+import io
+import qrcode
 from PIL import Image
 import zxingcpp
 import cv2
@@ -420,9 +422,36 @@ if app_mode == "👥 Customer Portal":
             grand_total = subtotal + tax
 
             st.markdown(f"### Grand Total: :green[${grand_total:.2f}] (includes 18% Sales Tax)")
-            payment_method = st.selectbox("Payment Method", ["Credit / Debit Card", "Apple Pay / Instant", "Store App Wallet"])
+            
+            payment_method = st.selectbox(
+                "Select Payment Method", 
+                [
+                    "📲 UPI (Google Pay / PhonePe / Paytm / BHIM)", 
+                    "💳 Credit / Debit Card", 
+                    "🍎 Apple Pay / Google Wallet", 
+                    "👛 Store App Wallet"
+                ]
+            )
 
-            if st.button("💳 Pay & Generate Digital Receipt", type="primary", use_container_width=True):
+            upi_vpa = ""
+            if "UPI" in payment_method:
+                st.markdown("#### 📲 Instant UPI Payment Option")
+                c_upi1, c_upi2 = st.columns([1, 1])
+                
+                with c_upi1:
+                    upi_app = st.radio("Select UPI App / Provider:", ["Google Pay", "PhonePe", "Paytm", "BHIM UPI", "Custom UPI ID"], horizontal=True)
+                    upi_vpa = st.text_input("Enter your UPI VPA / ID:", value="user@okaxis" if upi_app=="Google Pay" else ("user@ybl" if upi_app=="PhonePe" else "user@paytm"))
+                    st.caption("Example UPI IDs: `user@okaxis`, `user@ybl`, `user@paytm`, `9876543210@upi`")
+
+                with c_upi2:
+                    st.markdown("##### Dynamic UPI Payment QR Code")
+                    upi_uri = f"upi://pay?pa=scango.merchant@okaxis&pn=ScanAndGoRetail&am={grand_total:.2f}&cu=INR"
+                    qr_img = qrcode.make(upi_uri)
+                    img_buf = io.BytesIO()
+                    qr_img.save(img_buf, format="PNG")
+                    st.image(img_buf.getvalue(), caption=f"Scan with {upi_app} to Pay ${grand_total:.2f}", width=180)
+
+            if st.button(f"💳 Pay ${grand_total:.2f} & Generate Digital Receipt", type="primary", use_container_width=True):
                 db = get_db()
                 txn = Transaction(
                     user_id=st.session_state.user['id'] if st.session_state.user else 1,
@@ -432,7 +461,7 @@ if app_mode == "👥 Customer Portal":
                     discount=0.0,
                     tax=tax,
                     total_amount=grand_total,
-                    payment_method=payment_method
+                    payment_method=f"UPI ({upi_vpa})" if "UPI" in payment_method else payment_method
                 )
                 db.add(txn)
                 db.commit()
@@ -452,7 +481,7 @@ if app_mode == "👥 Customer Portal":
                 db.close()
 
                 st.balloons()
-                st.success(f"🎉 Checkout Complete! Receipt #{txn.id} generated & stock updated.")
+                st.success(f"🎉 Payment Successful via {payment_method}! Receipt #{txn.id} generated & store inventory updated.")
                 st.session_state.cart = {}
 
     # -------------------------------------------------------------------------
