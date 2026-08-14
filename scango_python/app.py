@@ -17,35 +17,65 @@ from database import (
 )
 from ml_engine import ml_pipeline
 
-# --- Page Configuration & Dark Theme ---
+# --- Page Configuration ---
 st.set_page_config(
-    page_title="Scan & Go — Multi-Outlet Retail Platform",
+    page_title="Scan & Go — Queue-Free Retail Platform",
     page_icon="🛒",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom Styling (Dark Glassmorphism)
+# --- Executive Glassmorphic CSS Styling ---
 st.markdown("""
 <style>
+    /* Global Theme Setup */
     .stApp {
-        background-color: #090d16;
+        background: radial-gradient(circle at 50% 0%, #0f172a 0%, #090d16 100%);
         color: #f8fafc;
-        font-family: 'Inter', system-ui, sans-serif;
+        font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
     }
+    
+    /* Header Banner */
+    .app-header {
+        background: linear-gradient(135deg, rgba(2, 128, 144, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%);
+        border: 1px solid rgba(0, 245, 212, 0.2);
+        border-radius: 1.5rem;
+        padding: 1.5rem 2rem;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 20px 30px -10px rgba(0, 0, 0, 0.5);
+        backdrop-filter: blur(16px);
+    }
+    
+    /* Glassmorphic Outlet Card */
     .outlet-card {
-        background: rgba(15, 23, 42, 0.85);
+        background: rgba(15, 23, 42, 0.75);
         border: 1px solid rgba(255, 255, 255, 0.1);
         border-radius: 1.25rem;
-        padding: 1.25rem;
-        margin-bottom: 1rem;
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
     }
+    .outlet-card:hover {
+        border-color: rgba(0, 245, 212, 0.4);
+        transform: translateY(-2px);
+    }
+
+    /* Product Cards */
+    .product-card {
+        background: rgba(15, 23, 42, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 1.25rem;
+        padding: 1.25rem;
+        box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    /* Status Badges */
     .badge-in-stock {
         background: rgba(16, 185, 129, 0.15);
         color: #34d399;
         border: 1px solid rgba(16, 185, 129, 0.3);
-        padding: 0.2rem 0.6rem;
-        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 0.6rem;
         font-size: 0.75rem;
         font-weight: 800;
     }
@@ -53,8 +83,8 @@ st.markdown("""
         background: rgba(239, 68, 68, 0.15);
         color: #f87171;
         border: 1px solid rgba(239, 68, 68, 0.3);
-        padding: 0.2rem 0.6rem;
-        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 0.6rem;
         font-size: 0.75rem;
         font-weight: 800;
     }
@@ -62,8 +92,8 @@ st.markdown("""
         background: rgba(245, 158, 11, 0.15);
         color: #fbbf24;
         border: 1px solid rgba(245, 158, 11, 0.3);
-        padding: 0.2rem 0.6rem;
-        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 0.6rem;
         font-size: 0.75rem;
         font-weight: 800;
     }
@@ -71,8 +101,8 @@ st.markdown("""
         background: rgba(168, 85, 247, 0.15);
         color: #c084fc;
         border: 1px solid rgba(168, 85, 247, 0.3);
-        padding: 0.2rem 0.6rem;
-        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        border-radius: 0.6rem;
         font-size: 0.75rem;
         font-weight: 800;
     }
@@ -82,7 +112,6 @@ st.markdown("""
 # Initialize Database Schema & Seed Data
 init_db()
 
-# Helper DB Session
 def get_db():
     return SessionLocal()
 
@@ -98,7 +127,7 @@ if 'last_scanned' not in st.session_state:
 if 'discount_percent' not in st.session_state:
     st.session_state.discount_percent = 0.0
 
-# Define Available Navigation Pages per Mode
+# Available Navigation Pages per Mode
 customer_pages = [
     "🏬 Discover Physical Outlets",
     "🔍 Pre-Visit Store Catalog",
@@ -141,7 +170,6 @@ def add_to_cart_by_barcode(barcode: str, outlet_id: int):
     product = db.query(Product).filter(Product.barcode == barcode, Product.outlet_id == outlet_id).first()
     
     if not product:
-        # Fallback check any outlet or auto-register
         product = db.query(Product).filter(Product.barcode == barcode).first()
         if not product:
             product = Product(
@@ -176,12 +204,11 @@ def add_to_cart_by_barcode(barcode: str, outlet_id: int):
     st.session_state.last_scanned = product.name
     db.close()
 
-# --- Sidebar Header & Navigation Controls ---
+# --- Sidebar Header & Navigation ---
 st.sidebar.markdown("### 🛒 Scan & Go `PRO`")
-st.sidebar.caption("Multi-Outlet Physical Discovery & Scan & Go Platform")
+st.sidebar.caption("100% Pure Python Smart Retail Platform")
 
-# Platform Role Switcher Mode
-app_mode = st.sidebar.selectbox("Select User Experience", ["👥 Customer Portal", "🏢 Merchant Console"])
+app_mode = st.sidebar.selectbox("Select Application Experience Mode", ["👥 Customer Experience Portal", "🏢 Merchant Management Console"])
 
 if st.session_state.user:
     st.sidebar.success(f"Logged in as: **{st.session_state.user['email']}**")
@@ -190,19 +217,28 @@ if st.session_state.user:
         st.session_state.cart = {}
         st.rerun()
 else:
-    st.sidebar.info("Please sign in or use demo accounts.")
-    if st.sidebar.button("⚡ 1-Click Demo Customer Login"):
-        db = get_db()
-        u = db.query(User).filter(User.email == "customer@scango.com").first()
-        if u:
-            st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
-            st.rerun()
-        db.close()
+    st.sidebar.info("Please sign in or use 1-click demo accounts.")
+    c_side1, c_side2 = st.columns(2)
+    with c_side1:
+        if st.sidebar.button("⚡ Demo Customer"):
+            db = get_db()
+            u = db.query(User).filter(User.email == "customer@scango.com").first()
+            if u:
+                st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                st.rerun()
+            db.close()
+    with c_side2:
+        if st.sidebar.button("⚡ Demo Merchant"):
+            db = get_db()
+            u = db.query(User).filter(User.email == "test@scango.com").first()
+            if u:
+                st.session_state.user = {"id": u.id, "email": u.email, "role": u.role}
+                st.rerun()
+            db.close()
 
 st.sidebar.markdown("---")
 
-# Render Radio Menu based on Mode
-if app_mode == "👥 Customer Portal":
+if app_mode == "👥 Customer Experience Portal":
     current_idx = customer_pages.index(st.session_state.customer_page) if st.session_state.customer_page in customer_pages else 0
     selected_page = st.sidebar.radio("Customer Navigation", customer_pages, index=current_idx)
     st.session_state.customer_page = selected_page
@@ -215,11 +251,38 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("**Tech Stack (100% Python):**")
 st.sidebar.code("Streamlit • OpenCV • ZXing\nSQLAlchemy • Pandas • Scikit-Learn")
 
+# --- Top Header Banner ---
+db = get_db()
+active_outlet_obj = db.query(Outlet).filter(Outlet.id == st.session_state.active_outlet_id).first()
+db.close()
+
+outlet_display = active_outlet_obj.name if active_outlet_obj else "Downtown Superstore Outlet #01"
+cart_count = sum(i['quantity'] for i in st.session_state.cart.values())
+cart_total = sum(i['price'] * i['quantity'] for i in st.session_state.cart.values())
+
+st.markdown(f"""
+<div class="app-header">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
+        <div>
+            <span style="background:rgba(0, 245, 212, 0.15); color:#00f5d4; font-size:11px; font-weight:800; padding:0.3rem 0.8rem; border-radius:1rem; border:1px solid rgba(0, 245, 212, 0.3); text-transform:uppercase;">
+                🟢 Live In-Store System
+            </span>
+            <h2 style="margin:0.4rem 0 0 0; color:#ffffff; font-weight:900; letter-spacing:-0.03em;">🛒 Scan & Go — Queue-Free Retail</h2>
+            <p style="margin:0.2rem 0 0 0; color:#94a3b8; font-size:13px;">Selected Outlet: <b>📍 {outlet_display}</b></p>
+        </div>
+        <div style="background:rgba(15, 23, 42, 0.9); border:1px solid rgba(255, 255, 255, 0.1); padding:0.75rem 1.25rem; border-radius:1rem; text-align:right;">
+            <div style="font-size:10px; text-transform:uppercase; color:#94a3b8; font-weight:800;">Active Shopping Cart</div>
+            <div style="font-size:16px; font-weight:900; color:#00f5d4;">${cart_total:.2f} ({cart_count} items)</div>
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 
 # =============================================================================
 # 👥 CUSTOMER PORTAL EXPERIENCE
 # =============================================================================
-if app_mode == "👥 Customer Portal":
+if app_mode == "👥 Customer Experience Portal":
 
     # -------------------------------------------------------------------------
     # 1. DISCOVER PHYSICAL OUTLETS
@@ -232,8 +295,7 @@ if app_mode == "👥 Customer Portal":
         outlets = db.query(Outlet).all()
         db.close()
 
-        # Search Bar
-        search_query = st.text_input("🔎 Search outlets by store name or city:", placeholder="e.g. Downtown or Greenfield")
+        search_query = st.text_input("🔎 Search outlets by store name or city:", placeholder="e.g. Downtown, Metro Center, or Greenfield")
 
         if search_query:
             outlets = [o for o in outlets if search_query.lower() in o.name.lower() or search_query.lower() in o.city.lower()]
@@ -243,14 +305,17 @@ if app_mode == "👥 Customer Portal":
             with cols[idx % len(cols)]:
                 st.markdown(f"""
                 <div class="outlet-card">
-                    <h3>🏪 {o.name}</h3>
-                    <p style="color:#94a3b8; font-size:13px;">📍 {o.address}, {o.city}</p>
-                    <p style="color:#00f5d4; font-weight:bold; font-size:14px;">⚡ {o.distance_km} km away • {o.opening_hours}</p>
-                    <p style="color:#cbd5e1; font-size:12px;">📞 {o.contact_phone}</p>
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3 style="margin:0; font-size:18px; color:#fff;">🏪 {o.name}</h3>
+                        <span style="background:rgba(0, 245, 212, 0.15); color:#00f5d4; font-size:11px; font-weight:800; padding:0.2rem 0.5rem; border-radius:0.5rem;">⭐ 4.9</span>
+                    </div>
+                    <p style="color:#94a3b8; font-size:13px; margin:0.5rem 0;">📍 {o.address}, {o.city}</p>
+                    <p style="color:#00f5d4; font-weight:bold; font-size:13px; margin:0.2rem 0;">⚡ {o.distance_km} km away • 🟢 Open ({o.opening_hours})</p>
+                    <p style="color:#cbd5e1; font-size:12px; margin:0.2rem 0 1rem 0;">📞 {o.contact_phone}</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
-                if st.button(f"🔍 Inspect Inventory & Offers ({o.name[:18]}...)", key=f"select_o_{o.id}", use_container_width=True):
+                if st.button(f"🔍 Inspect Live Inventory ({o.name[:16]}...)", key=f"select_o_{o.id}", type="primary", use_container_width=True):
                     st.session_state.active_outlet_id = o.id
                     st.session_state.customer_page = "🔍 Pre-Visit Store Catalog"
                     st.rerun()
@@ -265,15 +330,14 @@ if app_mode == "👥 Customer Portal":
             active_outlet = db.query(Outlet).first()
             st.session_state.active_outlet_id = active_outlet.id
 
-        st.title(f"🔍 Pre-Visit Catalog: {active_outlet.name}")
+        st.title(f"🔍 Live Shelf Inventory: {active_outlet.name}")
         st.caption("Check real-time stock levels, prices, special discounts, and new product launches before physically visiting.")
 
-        st.info("💡 **Pre-Visit Notice:** Online home delivery is disabled. Use this catalog to verify stock availability, then physically visit the store to Scan & Go!")
+        st.info("💡 **Pre-Visit Notice:** Home delivery is disabled. Use this catalog to verify stock availability, then physically visit the store to Scan & Go!")
 
-        # Outlet Selector Dropdown
         all_outlets = db.query(Outlet).all()
         selected_o_id = st.selectbox(
-            "Change Selected Physical Outlet:",
+            "Select Physical Outlet:",
             options=[o.id for o in all_outlets],
             format_func=lambda x: next(o.name for o in all_outlets if o.id == x),
             index=[o.id for o in all_outlets].index(st.session_state.active_outlet_id)
@@ -282,7 +346,6 @@ if app_mode == "👥 Customer Portal":
             st.session_state.active_outlet_id = selected_o_id
             st.rerun()
 
-        # Product Filter Tabs
         tab_all, tab_instock, tab_offers, tab_new = st.tabs([
             "📦 All Products", 
             "✅ In-Stock Only", 
@@ -303,23 +366,21 @@ if app_mode == "👥 Customer Portal":
                 with p_cols[idx % 3]:
                     st.markdown(f"#### {p.name}")
                     
-                    # Badges
                     badges_html = ""
                     if p.is_in_stock and p.stock > 0:
-                        badges_html += f'<span class="badge-in-stock">In Stock ({p.stock} left)</span> '
+                        badges_html += f'<span class="badge-in-stock">🟢 In Stock ({p.stock} left)</span> '
                     else:
-                        badges_html += '<span class="badge-out-stock">Out of Stock</span> '
+                        badges_html += '<span class="badge-out-stock">🔴 Out of Stock</span> '
 
                     if p.discount_percent > 0:
-                        badges_html += f'<span class="badge-offer">{p.discount_percent:.0f}% OFF</span> '
+                        badges_html += f'<span class="badge-offer">🏷️ {p.discount_percent:.0f}% OFF</span> '
                     if p.is_new_launch:
                         badges_html += '<span class="badge-new">🔥 New Launch</span>'
 
                     st.markdown(badges_html, unsafe_allow_html=True)
                     
-                    # Price Math
                     if p.discount_percent > 0:
-                        st.markdown(f"**Price:** :green[${p.price:.2f}] ~(${p.original_price:.2f}~)")
+                        st.markdown(f"**Price:** :green[**${p.price:.2f}**] ~(${p.original_price:.2f}~)")
                     else:
                         st.markdown(f"**Price:** **${p.price:.2f}**")
 
@@ -353,8 +414,7 @@ if app_mode == "👥 Customer Portal":
         if st.session_state.last_scanned:
             st.success(f"🛒 **Scanned & Added to Cart:** {st.session_state.last_scanned}")
 
-        # Store Barcode Quick Chips
-        st.markdown("### ⚡ Quick Store Barcode Scan Chips")
+        st.markdown("### ⚡ Store Quick Barcode Scan Chips")
         db = get_db()
         outlet_products = db.query(Product).filter(Product.outlet_id == st.session_state.active_outlet_id).all()
         db.close()
@@ -366,38 +426,39 @@ if app_mode == "👥 Customer Portal":
                     add_to_cart_by_barcode(p.barcode, st.session_state.active_outlet_id)
                     st.rerun()
 
-        # Camera & File Decoder
         st.markdown("---")
+        st.markdown("### 🎥 Camera & Image QR Code / Barcode Decoder")
+        
         c_cam, c_file = st.columns([1, 1])
 
         with c_cam:
-            st.markdown("#### Option A: Live Camera Input")
-            camera_photo = st.camera_input("Point camera at product barcode:")
+            st.markdown("#### Option A: Live Camera Viewfinder")
+            camera_photo = st.camera_input("Point camera directly at QR Code or Barcode:")
             if camera_photo:
                 decoded_text = decode_qr_or_barcode(camera_photo)
                 if decoded_text:
-                    st.success(f"🎉 Decoded Barcode: `{decoded_text}`")
+                    st.success(f"🎉 **QR / Barcode Decoded:** `{decoded_text}`")
                     add_to_cart_by_barcode(decoded_text, st.session_state.active_outlet_id)
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("⚠️ No barcode recognized. Center code and take photo again.")
+                    st.error("⚠️ No barcode recognized in camera photo. Align code inside frame and take photo again.")
 
         with c_file:
             st.markdown("#### Option B: Upload Image File")
-            up_file = st.file_uploader("Upload barcode/QR image file:", type=["png", "jpg", "jpeg"])
+            up_file = st.file_uploader("Upload QR Code or Barcode image file (PNG, JPG, WEBP):", type=["png", "jpg", "jpeg", "webp"])
             if up_file:
                 decoded_text = decode_qr_or_barcode(up_file)
                 if decoded_text:
-                    st.success(f"🎉 Decoded Image: `{decoded_text}`")
+                    st.success(f"🎉 **Uploaded Image Decoded:** `{decoded_text}`")
                     add_to_cart_by_barcode(decoded_text, st.session_state.active_outlet_id)
                     time.sleep(1)
                     st.rerun()
                 else:
-                    st.error("⚠️ Could not decode barcode from image.")
+                    st.error("⚠️ Could not decode QR / Barcode from uploaded image file.")
 
     # -------------------------------------------------------------------------
-    # 4. CART & CHECKOUT
+    # 4. CART & CHECKOUT WITH UPI PAYMENTS
     # -------------------------------------------------------------------------
     elif selected_page == "🛒 Cart & Checkout":
         st.title("🛒 Active Shopping Cart & Checkout")
@@ -407,21 +468,23 @@ if app_mode == "👥 Customer Portal":
         else:
             cart_list = []
             for pid, item in st.session_state.cart.items():
+                total = item['price'] * item['quantity']
                 cart_list.append({
                     "Product Name": item['name'],
-                    "Barcode": item['barcode'],
-                    "Price ($)": f"${item['price']:.2f}",
-                    "Qty": item['quantity'],
-                    "Total ($)": f"${(item['price'] * item['quantity']):.2f}"
+                    "Barcode / QR": item['barcode'],
+                    "Unit Price ($)": f"${item['price']:.2f}",
+                    "Quantity": item['quantity'],
+                    "Total ($)": f"${total:.2f}"
                 })
-            
-            st.dataframe(pd.DataFrame(cart_list), use_container_width=True)
+
+            df_cart = pd.DataFrame(cart_data if 'cart_data' in locals() else cart_list)
+            st.dataframe(df_cart, use_container_width=True)
 
             subtotal = sum(i['price'] * i['quantity'] for i in st.session_state.cart.values())
             tax = subtotal * 0.18
             grand_total = subtotal + tax
 
-            st.markdown(f"### Grand Total: :green[${grand_total:.2f}] (includes 18% Sales Tax)")
+            st.markdown(f"### Grand Total: :green[**${grand_total:.2f}**] (includes 18% Sales Tax)")
             
             payment_method = st.selectbox(
                 "Select Payment Method", 
@@ -439,9 +502,9 @@ if app_mode == "👥 Customer Portal":
                 c_upi1, c_upi2 = st.columns([1, 1])
                 
                 with c_upi1:
-                    upi_app = st.radio("Select UPI App / Provider:", ["Google Pay", "PhonePe", "Paytm", "BHIM UPI", "Custom UPI ID"], horizontal=True)
-                    upi_vpa = st.text_input("Enter your UPI VPA / ID:", value="user@okaxis" if upi_app=="Google Pay" else ("user@ybl" if upi_app=="PhonePe" else "user@paytm"))
-                    st.caption("Example UPI IDs: `user@okaxis`, `user@ybl`, `user@paytm`, `9876543210@upi`")
+                    upi_app = st.radio("Select UPI Provider:", ["Google Pay", "PhonePe", "Paytm", "BHIM UPI", "Custom VPA"], horizontal=True)
+                    upi_vpa = st.text_input("Enter your UPI ID / VPA:", value="user@okaxis" if upi_app=="Google Pay" else ("user@ybl" if upi_app=="PhonePe" else "user@paytm"))
+                    st.caption("Example: `user@okaxis`, `user@ybl`, `user@paytm`, `9876543210@upi`")
 
                 with c_upi2:
                     st.markdown("##### Dynamic UPI Payment QR Code")
@@ -470,7 +533,6 @@ if app_mode == "👥 Customer Portal":
                 for item in st.session_state.cart.values():
                     ci = CartItem(transaction_id=txn.id, product_id=item['product_id'], quantity=item['quantity'], unit_price=item['price'])
                     db.add(ci)
-                    # Automatic Stock Deduction
                     prod = db.query(Product).filter(Product.id == item['product_id']).first()
                     if prod:
                         prod.stock = max(0, prod.stock - item['quantity'])
@@ -502,10 +564,10 @@ if app_mode == "👥 Customer Portal":
             st.info("No past receipts found. Complete a checkout in the **In-Store Scan & Go** terminal.")
         else:
             for t in txns[::-1]:
-                with st.expander(f"🧾 Receipt #{t.id} — ${t.total_amount:.2f} ({t.created_at.strftime('%b %d, %Y %I:%M %p')})"):
+                with st.expander(f"🧾 Digital Receipt #{t.id} — ${t.total_amount:.2f} ({t.created_at.strftime('%b %d, %Y %I:%M %p')})"):
                     st.write(f"**Payment Method:** {t.payment_method}")
                     st.write(f"**Status:** {t.status.upper()}")
-                    st.write(f"**Total Paid:** ${t.total_amount:.2f}")
+                    st.write(f"**Total Amount Paid:** ${t.total_amount:.2f}")
 
 
 # =============================================================================
@@ -517,8 +579,8 @@ else:
     # 1. OUTLETS MANAGEMENT
     # -------------------------------------------------------------------------
     if selected_page == "🏢 Outlets Management":
-        st.title("🏢 Outlets Management")
-        st.caption("Add and manage your physical retail store outlets.")
+        st.title("🏢 Outlets Management Console")
+        st.caption("Add and manage physical retail store outlets.")
 
         db = get_db()
         outlets = db.query(Outlet).all()
@@ -527,7 +589,7 @@ else:
         col_list, col_add = st.columns([2, 1])
 
         with col_list:
-            st.markdown("### Active Store Outlets")
+            st.markdown("### Active Physical Outlets")
             for o in outlets:
                 st.markdown(f"""
                 <div class="outlet-card">
