@@ -117,3 +117,5 @@ streamlit run scango_python/app.py --server.port 8501
 ## 📄 License
 
 This project is open-source under the **MIT License**.
+
+Made with ❤️ by **Kaushal Mathur**
