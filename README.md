@@ -1,6 +1,6 @@
 <div align="center">
-  <h1>🛒 Scan & Go — Smart Retail Platform</h1>
-  <p><b>Multi-Outlet Physical Store Discovery, Pre-Visit Stock Verification & In-Store Scan & Go Platform</b></p>
+  <h1>🛒 Scan & Go</h1>
+  <p><b>Multi-Outlet Physical Store Discovery, Pre-Visit Stock Verification & In-Store Scan & Go</b></p>
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
   [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)

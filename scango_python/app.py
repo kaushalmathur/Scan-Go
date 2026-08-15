@@ -281,7 +281,7 @@ st.markdown(f"""
             <span style="background:rgba(0, 245, 212, 0.15); color:#00f5d4; font-size:11px; font-weight:800; padding:0.3rem 0.8rem; border-radius:1rem; border:1px solid rgba(0, 245, 212, 0.3); text-transform:uppercase;">
                 🟢 Live In-Store System
             </span>
-            <h2 style="margin:0.4rem 0 0 0; color:#ffffff; font-weight:900; letter-spacing:-0.03em;">🛒 Scan & Go — Queue-Free Retail Platform</h2>
+            <h2 style="margin:0.4rem 0 0 0; color:#ffffff; font-weight:900; letter-spacing:-0.03em;">🛒 Scan & Go — Queue-Free Retail</h2>
             <p style="margin:0.2rem 0 0 0; color:#94a3b8; font-size:13px;">Selected Outlet: <b>📍 {outlet_display}</b></p>
         </div>
         <div style="background:rgba(15, 23, 42, 0.9); border:1px solid rgba(255, 255, 255, 0.1); padding:0.75rem 1.25rem; border-radius:1rem; text-align:right;">
